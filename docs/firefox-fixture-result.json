@@ -1,5 +1,5 @@
 {
-  "extensionVersion": "0.3.2",
+  "extensionVersion": "0.3.3",
   "browser": "153.4.0",
   "fixture": "grupo e canal sintéticos locais; API WPP simulada; não WhatsApp real",
   "messages": 35,
@@ -29,6 +29,7 @@
     "contêiner vazio não contado",
     "pausa por metadados incompletos e retomada após recuperação",
     "exportação padrão sem XLSX",
+    "rolagem avança por mais de oito ciclos com IDs inalterados",
     "pseudônimos",
     "canal",
     "encerramento parcial",

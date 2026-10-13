@@ -62,3 +62,14 @@ test('metadados nativos recuperam data e legenda, preservam texto observado e di
  assert.equal(C.isEmptyMessage(blank),true);assert.equal(C.isEmptyMessage({...blank,id:'3A0317DF2E46B668CE56'}),false);assert.equal(C.isEmptyMessage({...blank,tipo:'video'}),false);
  assert.equal(C.applyMessageMetadata(message('x','observado'),{tipo:'texto',texto:'nativo'},'').texto,'observado');
 });
+test('rolagem não é considerada travada quando a posição avança com mensagens iguais',()=>{
+ const t=new C.ScrollTracker();
+ for(let top=6000;top>=0;top-=200){const s=t.observe({signature:'mesmas mensagens',count:20,top,height:6500});assert.equal(s.idle,0);}
+ for(let i=0;i<8;i++)t.observe({signature:'mesmas mensagens',count:20,top:0,height:6500});
+ assert.equal(t.idle,8);t.reset();assert.equal(t.observe({signature:'mesmas mensagens',count:20,top:3000,height:6500}).idle,0);
+});
+test('histórico ancorado e mudanças na altura reiniciam detecção de travamento',()=>{
+ const t=new C.ScrollTracker();t.observe({signature:'b,c',count:2,top:1100,height:2000});
+ for(let i=0;i<8;i++)assert.equal(t.observe({signature:'a,b,c'+i,count:3+i,top:1100,height:2000}).idle,0);
+ assert.equal(t.observe({signature:'a,b,c7',count:10,top:1100,height:2400}).idle,0);
+});

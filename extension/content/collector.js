@@ -112,9 +112,11 @@
       if (!box && !rows.length) { await pause("Estrutura de mensagens incompatível ou histórico ainda não carregado."); return; }
       if (box && !s.initialized) { box.scrollTop = box.scrollHeight; await delay(1200); }
       s.initialized = true;
-      let unchanged = 0, previousSignature = "", attempts = 0;
+      const scrollTracker = new C.ScrollTracker();
+      let recoveries = 0, loadingSince = 0, attempts = 0;
       while (!s.stopped) {
         if (s.paused) { await delay(300); continue; }
+        if (s.scrollReset) { scrollTracker.reset(); recoveries = 0; loadingSince = 0; s.scrollReset = false; }
         info = await verify(); if (!info) continue;
         rows = A.rows(info.root); box = A.scrollBox(info.root, rows);
         if (!rows.length) { await pause("Nenhuma mensagem reconhecida. Coleta preservada para exportação parcial."); continue; }
@@ -193,18 +195,51 @@
         if (s.stopped) break;
         const reachedDate = s.options.start && messages.some(m => m.data_hora && +new Date(m.data_hora) < +new Date(`${s.options.start}T00:00:00`));
         if (reachedDate) { s.stopped = true; await send({ type: "finished", job: s.job, reason: "intervalo", unknownDates: s.unknownDates.size }); break; }
-        if (signature === previousSignature) unchanged++; else unchanged = 0;
-        previousSignature = signature;
-        if ((!box || box.scrollTop <= 2) && unchanged >= 5) {
-          s.stopped = true;
-          await send({ type: "finished", job: s.job, reason: "limite_observado", unknownDates: s.unknownDates.size }); break;
+        // Media viewers and virtualized history can replace the scroll element.
+        info = await verify(); if (!info) continue;
+        rows = A.rows(info.root); box = A.scrollBox(info.root, rows);
+        if (!box) { await pause("Não foi possível localizar a área de rolagem. Coleta parcial preservada."); continue; }
+        const scroll = scrollTracker.observe({ signature, count: s.seen.size, top: box.scrollTop, height: box.scrollHeight });
+        if (scroll.progress) recoveries = 0;
+        const loading = Array.from(info.root.querySelectorAll('[aria-busy="true"],[data-testid="conversation-loading"],[data-testid="chat-loading"],[data-testid="spinner"],[data-icon="spinner"]')).some(el => el.getClientRects().length);
+        if (loading) {
+          loadingSince ||= Date.now();
+          if (Date.now() - loadingSince > 45000) await pause("O WhatsApp ainda está carregando o histórico. Aguarde e use Continuar; a coleta parcial foi preservada.");
+          else await delay(750);
+          continue;
         }
+        loadingSince = 0;
         if (++attempts > 100000) { await pause("Limite de ciclos atingido; exporte o material ou continue uma nova coleta."); continue; }
-        if (!box) { await delay(1000); continue; }
-        if (unchanged >= 8 && box.scrollTop > 2) { await pause("A rolagem parou de revelar mensagens. Coleta parcial preservada."); continue; }
+        if (scroll.idle >= 3 && recoveries < 3) {
+          recoveries++;
+          const top = box.scrollTop;
+          // A small down/up motion re-triggers lazy loading even at scrollTop=0.
+          box.scrollTop = Math.min(box.scrollHeight - box.clientHeight, top + 80);
+          box.dispatchEvent(new Event("scroll", { bubbles: true }));
+          await delay(200);
+          if (s.stopped || s.paused || !await verify()) continue;
+          const fresh = A.conversation();
+          const freshRows = A.rows(fresh.root);
+          box = A.scrollBox(fresh.root, freshRows);
+          if (!box) continue;
+          if (recoveries === 3) freshRows[0]?.scrollIntoView?.({ block: "start", inline: "nearest", behavior: "instant" });
+          box.scrollTop = Math.max(0, top - Math.max(200, box.clientHeight * 0.65));
+          box.dispatchEvent(new Event("scroll", { bubbles: true }));
+          scrollTracker.idle = 0;
+          await delay(1500);
+          continue;
+        }
+        if (scroll.idle >= 5 && recoveries >= 3) {
+          if (scroll.atTop) {
+            s.stopped = true;
+            await send({ type: "finished", job: s.job, reason: "limite_observado", unknownDates: s.unknownDates.size }); break;
+          }
+          await pause("O WhatsApp não respondeu às tentativas de recuperar a rolagem. Coleta parcial preservada; use Continuar para tentar novamente.");
+          continue;
+        }
         box.scrollTop = Math.max(0, box.scrollTop - Math.max(200, box.clientHeight * 0.65));
         box.dispatchEvent(new Event("scroll", { bubbles: true }));
-        await delay(900 + Math.min(unchanged * 300, 1500));
+        await delay(900 + Math.min(scroll.idle * 300, 1500));
       }
       if (s.stopped && !s.finishSent) {
         s.finishSent = true;
@@ -233,7 +268,7 @@
     if (message.type === "resume") {
       if (!session || session.stopped) throw new Error("Sessão de coleta perdida. Exporte o material preservado e inicie outra coleta.");
       if (!await verify()) throw new Error("Volte à conversa original para continuar.");
-      session.paused = false; session.metadataRetries?.clear();
+      session.paused = false; session.metadataRetries?.clear(); session.scrollReset = true;
       if (!session.loopRunning) collect(session);
       return { ok: true };
     }

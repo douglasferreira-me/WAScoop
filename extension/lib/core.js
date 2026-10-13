@@ -91,6 +91,17 @@
   function isEmptyMessage(m) {
     return !m._nativeConfirmed && !isNativeMessageId(m.id) && m.tipo === "texto" && !m.texto && !m.legenda && !m.data_hora && !m.remetente && !m.resposta_a && !m.link_mensagem && !(m.links || []).length;
   }
+  class ScrollTracker {
+    constructor() { this.reset(); }
+    reset() { this.previous = null; this.idle = 0; }
+    observe(current) {
+      const previous = this.previous;
+      const progress = !previous || current.signature !== previous.signature || current.count > previous.count || Math.abs(current.height - previous.height) > 2 || current.top < previous.top - 2;
+      this.idle = progress ? 0 : this.idle + 1;
+      this.previous = { ...current };
+      return { progress, idle: this.idle, atTop: current.top <= 2 };
+    }
+  }
   function csvCell(value) {
     const s = String(value ?? "");
     // Spreadsheet-safe export. Apostrophe is documented and reversible.
@@ -108,7 +119,7 @@
   function mediaExtension(mime) {
     return ({ "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif", "video/mp4": "mp4", "audio/ogg": "ogg", "audio/mpeg": "mp3", "audio/mp4": "m4a", "application/pdf": "pdf" })[mime?.split(";")[0]] || "bin";
   }
-  const api = { isNativeMessageId, applyMessageMetadata, isEmptyMessage, columns, extractLinks, safeName, hashText, parseDate, inRange, fingerprint, Timeline, csvCell, csvLine, csvHeader, pseudonymize, mediaExtension };
+  const api = { ScrollTracker, isNativeMessageId, applyMessageMetadata, isEmptyMessage, columns, extractLinks, safeName, hashText, parseDate, inRange, fingerprint, Timeline, csvCell, csvLine, csvHeader, pseudonymize, mediaExtension };
   root.ScoopCore = api;
   if (typeof module !== "undefined") module.exports = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

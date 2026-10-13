@@ -14,7 +14,7 @@ Produzido por **[douglasferreira](https://douglasferreira.me)**. A ferramenta or
 
 Este é o **resumo**; o passo a passo completo está logo abaixo. Você não precisa saber programar.
 
-1. Baixe e descompacte o [pacote de teste](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.3.2-beta/whatsapp-scoop-0.3.2-temporario.zip).
+1. Baixe e descompacte o [pacote de teste](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.3.3-beta/whatsapp-scoop-0.3.3-temporario.zip).
 2. No Firefox, abra `about:debugging` → **Este Firefox** → **Carregar extensão temporária** e selecione `manifest.json` na pasta descompactada.
 3. Abra o grupo ou canal no WhatsApp Web, abra o painel **Whatsapp Scoop** e clique em **Iniciar coleta**. Marque **Incluir mídias** se quiser os arquivos.
 4. Ao terminar, salve e descompacte o ZIP. Abra `mensagens.csv` como uma planilha e conserve os demais arquivos junto dela. Se marcar a opção XLSX, também terá uma planilha pronta para análise.
@@ -25,7 +25,7 @@ Este é o **resumo**; o passo a passo completo está logo abaixo. Você não pre
 
 Use **Firefox para computador, versão 140 ou posterior**. Não é necessário instalar Python ou outros programas de desenvolvimento.
 
-1. **Baixe o pacote.** Clique em [whatsapp-scoop-0.3.2-temporario.zip](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.3.2-beta/whatsapp-scoop-0.3.2-temporario.zip). Normalmente ele será salvo na pasta **Downloads**. Use esse arquivo, e não o pacote de código-fonte ou o arquivo `.xpi`.
+1. **Baixe o pacote.** Clique em [whatsapp-scoop-0.3.3-temporario.zip](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.3.3-beta/whatsapp-scoop-0.3.3-temporario.zip). Normalmente ele será salvo na pasta **Downloads**. Use esse arquivo, e não o pacote de código-fonte ou o arquivo `.xpi`.
 2. **Descompacte o arquivo.** ZIP é um arquivo que reúne uma pasta e seus conteúdos. No Windows, clique com o botão direito e escolha **Extrair tudo**. No macOS, dê dois cliques no ZIP. Guarde a pasta extraída: você precisará dela nas próximas instalações.
 3. **Abra a página de instalação.** No Firefox, clique na barra de endereço, no alto da janela. Digite `about:debugging` e pressione **Enter**.
 4. **Escolha este navegador.** Clique em **Este Firefox**, à esquerda. Depois clique em **Carregar extensão temporária…**. Se o Firefox estiver em inglês, os nomes são **This Firefox** e **Load Temporary Add-on…**.
@@ -47,7 +47,7 @@ Essa instalação de teste desaparece quando o Firefox é reiniciado. Para reins
 9. **Acompanhe.** O painel mostra a etapa atual, quantas mensagens foram coletadas, o período alcançado e os resultados das mídias. Como o tamanho total do histórico é desconhecido, não há uma porcentagem de conclusão.
 10. **Salve o resultado.** Ao terminar, o Firefox oferecerá o download do ZIP. Escolha onde guardá-lo. Para terminar antes, clique em **Encerrar e exportar**: você receberá o material coletado até esse momento.
 
-Use **Pausar** e **Continuar** para interromper e retomar. Se trocar de conversa, volte à original para continuar. Se fechar ou recarregar a aba, exporte o material parcial e inicie uma nova coleta. Para tentar novamente um download, use **Exportar ZIP**.
+Use **Pausar** e **Continuar** para interromper e retomar. A ferramenta acompanha o movimento da rolagem e tenta recuperar carregamentos travados antes de pausar. **Continuar** reinicia essas tentativas; só considera um limite observado após tentativas sem progresso no topo e sem indicador de carregamento. Se trocar de conversa, volte à original para continuar. Se fechar ou recarregar a aba, exporte o material parcial e inicie uma nova coleta. Para tentar novamente um download, use **Exportar ZIP**.
 
 ### Abrir e compreender os arquivos
 
