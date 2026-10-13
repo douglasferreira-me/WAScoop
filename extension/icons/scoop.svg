@@ -1,19 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title description">
-  <title id="title">Whatsapp Scoop</title>
-  <desc id="description">Um balão de conversa sorridente e curioso, com óculos e uma lupa, representa a pesquisa de mensagens. Verde escuro, verde vivo e um pequeno brilho dourado.</desc>
-  <rect x="16" y="16" width="480" height="480" rx="112" fill="#075e54"/>
-  <path d="M111 111h222c41 0 69 29 69 69v101c0 39-28 66-69 66H178l-68 49 16-57c-25-9-40-30-40-58V180c0-40 10-69 25-69Z" fill="#f5fff8"/>
-  <path d="m330 274 75 80" fill="none" stroke="#f5fff8" stroke-width="40" stroke-linecap="round"/>
-  <path d="m330 274 75 80" fill="none" stroke="#25d366" stroke-width="24" stroke-linecap="round"/>
-  <path d="M155 169q20-14 39-5M273 155q23-6 40 9" fill="none" stroke="#075e54" stroke-width="10" stroke-linecap="round"/>
-  <circle cx="183" cy="225" r="42" fill="#e7f8ed" stroke="#075e54" stroke-width="13"/>
-  <path d="M225 218q12-10 23 0" fill="none" stroke="#075e54" stroke-width="12" stroke-linecap="round"/>
-  <circle cx="298" cy="225" r="56" fill="#d2f5de" stroke="#075e54" stroke-width="14"/>
-  <path d="m269 193 36-9" stroke="#fff" stroke-width="10" stroke-linecap="round"/>
-  <circle cx="183" cy="228" r="10" fill="#075e54"/>
-  <circle cx="299" cy="228" r="12" fill="#075e54"/>
-  <path d="M176 282q28 36 63 6" fill="none" stroke="#075e54" stroke-width="12" stroke-linecap="round"/>
-  <path d="m407 79 9 23 23 9-23 9-9 23-9-23-23-9 23-9Z" fill="#ffd166"/>
-  <circle cx="77" cy="405" r="8" fill="#25d366"/>
-  <path d="M106 425h28M148 425h50" stroke="#25d366" stroke-width="10" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Whatsapp Scoop — balão e lupa</title>
+  <path fill="#168b61" d="M128 56h256a72 72 0 0 1 72 72v208a72 72 0 0 1-72 72H202l-91 55 13-55a72 72 0 0 1-68-72V128a72 72 0 0 1 72-72Z"/>
+  <path fill="none" stroke="#fff" stroke-width="30" stroke-linecap="round" d="M296 184a72 72 0 1 0-102 102 72 72 0 0 0 102-102m0 102 56 56"/>
 </svg>

@@ -1,7 +1,7 @@
 /* Shared pure functions; deliberately usable in Firefox and Node tests. */
 (function (root) {
   "use strict";
-  const columns = ["id", "conversa", "tipo_conversa", "data_hora", "data_original", "remetente", "numero", "texto", "legenda", "tipo", "resposta_a", "encaminhada", "midias", "status_midia"];
+  const columns = ["id", "conversa", "tipo_conversa", "data_hora", "data_original", "remetente", "numero", "texto", "legenda", "links", "tipo", "resposta_a", "encaminhada", "interacoes_total", "interacoes_precisao", "interacoes_observadas_em", "midias_ids", "midias", "status_midia"];
   function safeName(value) {
     return String(value || "conversa").normalize("NFKC").replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_").replace(/[. ]+$/g, "").slice(0, 100) || "conversa";
   }
@@ -34,8 +34,19 @@
     const hi = end ? +new Date(`${end}T23:59:59.999`) : Infinity;
     return t >= lo && t <= hi;
   }
+  function extractLinks(text, hrefs = []) {
+    const urls = new Set();
+    for (const href of hrefs) if (/^https?:\/\//i.test(href || "")) urls.add(href);
+    for (const match of String(text || "").matchAll(/(?:https?:\/\/|www\.)[^\s<>"\u200e\u200f]+/gi)) {
+      let url = match[0].replace(/[.,;!?]+$/, "");
+      for (const [open, close] of [["(", ")"], ["[", "]"], ["{", "}"]]) while (url.endsWith(close) && url.split(close).length > url.split(open).length) url = url.slice(0, -1);
+      if (url.startsWith("www.")) url = "https://" + url;
+      urls.add(url);
+    }
+    return [...urls];
+  }
   function fingerprint(m) {
-    return JSON.stringify([m.data_original, m.data_hora, m.remetente, m.numero, m.texto, m.legenda, m.tipo, m.resposta_a]);
+    return JSON.stringify([m.data_original, m.data_hora, m.remetente, m.numero, m.texto, m.legenda, m.tipo, m.resposta_a, m.links]);
   }
   // Merge an older viewport with the previously observed chronology. An overlap
   // anchors identical messages by their positions, rather than by content alone.
@@ -80,7 +91,7 @@
   function mediaExtension(mime) {
     return ({ "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif", "video/mp4": "mp4", "audio/ogg": "ogg", "audio/mpeg": "mp3", "audio/mp4": "m4a", "application/pdf": "pdf" })[mime?.split(";")[0]] || "bin";
   }
-  const api = { columns, safeName, hashText, parseDate, inRange, fingerprint, Timeline, csvCell, csvLine, csvHeader, pseudonymize, mediaExtension };
+  const api = { columns, extractLinks, safeName, hashText, parseDate, inRange, fingerprint, Timeline, csvCell, csvLine, csvHeader, pseudonymize, mediaExtension };
   root.ScoopCore = api;
   if (typeof module !== "undefined") module.exports = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

@@ -49,3 +49,9 @@ test("pseudônimos preservam texto e têm estabilidade por coleta", () => {
   assert.equal(C.pseudonymize({ ...m, remetente: "Bia" }, names).remetente, "participante_0002");
   assert.equal(C.safeName("../../arquivo: inválido"), ".._.._arquivo_ inválido");
 });
+test('links preservam parâmetros, texto Unicode e URLs com parênteses', () => {
+  const C = require('../extension/lib/core.js');
+  assert.deepEqual(C.extractLinks('Veja (https://example.com/a_(b)). https://example.com/á?q=1&v=2', ['https://example.com/destino?x=1&y=2']), ['https://example.com/destino?x=1&y=2','https://example.com/a_(b)','https://example.com/á?q=1&v=2']);
+  const line=C.csvLine({links:['https://example.com/?q="aspas"&a=1'],midias_ids:['MID-000001','MID-000002'],midias:['midias/MID-000001.png','midias/MID-000002.mp4']});
+  assert.match(C.csvHeader(),/"links"/);assert.match(C.csvHeader(),/"midias_ids"/);assert.match(line,/MID-000001 \| MID-000002/);assert.match(line,/midias\/MID-000002.mp4/);
+});

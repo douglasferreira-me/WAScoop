@@ -1,6 +1,7 @@
 const C = globalThis.ScoopCore;
 export function publicMessage(m, job, names) {
   const record = job.options.pseudonymize ? C.pseudonymize(m, names) : { ...m };
+  record.links = Array.from(new Set([...(record.links || []), ...C.extractLinks((record.texto || "") + "\n" + (record.legenda || ""))]));
   return record;
 }
 export function csvStream(store, job) {
@@ -25,7 +26,7 @@ export async function csvBlob(store, job) {
 export async function reportFiles(store, job) {
   const index = [];
   for await (const row of store.records("media", job.key)) {
-    if (row.complete) index.push({ mensagem_id: row.messageId, arquivo: row.path, bytes: row.size, mime: row.mime, sha256: row.sha256, origem_captura: row.source || "desconhecida", drive_id: row.driveId || "", upload: row.uploadError || (row.driveId ? "enviado" : "local") });
+    if (row.complete) index.push({ midia_id: row.id || "", mensagem_id: row.messageId, arquivo: row.path, bytes: row.size, mime: row.mime, sha256: row.sha256, origem_captura: row.source || "desconhecida", drive_id: row.driveId || "", upload: row.uploadError || (row.driveId ? "enviado" : "local") });
   }
   const report = {
     ferramenta: "Whatsapp Scoop", versao: browser.runtime.getManifest().version, autor: "douglasferreira", site: "https://douglasferreira.me",

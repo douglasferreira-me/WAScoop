@@ -14,7 +14,7 @@ Você abre a conversa no WhatsApp Web, inicia a coleta e recebe uma planilha CSV
 
 Você **não precisa instalar Python nem aprender programação** para usar o pacote pronto. Use Firefox para computador, versão **140 ou posterior**.
 
-1. Baixe [`whatsapp-scoop-0.1.2-temporario.zip`](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.1.2-beta/whatsapp-scoop-0.1.2-temporario.zip) na [versão beta](https://github.com/douglasferreira-me/WAScoop/releases/tag/v0.1.2-beta). Se você está na pasta do projeto, ele está dentro de `dist/`.
+1. Baixe [`whatsapp-scoop-0.1.3-temporario.zip`](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.1.3-beta/whatsapp-scoop-0.1.3-temporario.zip) na [versão beta](https://github.com/douglasferreira-me/WAScoop/releases/tag/v0.1.3-beta). Se você está na pasta do projeto, ele está dentro de `dist/`.
 2. Extraia o ZIP em uma pasta. Não tente instalá-lo como uma extensão permanente.
 3. No Firefox para computador, digite **`about:debugging`** na barra de endereço.
 4. Clique em **Este Firefox** e depois em **Carregar extensão temporária**.
@@ -83,7 +83,7 @@ O login direto escolhido usa um fluxo OAuth legado, atualmente desaconselhado pe
 
 Na metodologia, registre as datas, a versão, o intervalo solicitado, a conta com acesso ao grupo/canal e as falhas do relatório. Revise dados pessoais antes de compartilhar o corpus ou publicar exemplos.
 
-Exemplo de referência: **douglasferreira. Whatsapp Scoop, versão 0.1.2. Disponível em https://github.com/douglasferreira-me/WAScoop. Coleta realizada em [data].**
+Exemplo de referência: **douglasferreira. Whatsapp Scoop, versão 0.1.3. Disponível em https://github.com/douglasferreira-me/WAScoop. Coleta realizada em [data].**
 
 ## Algo não funcionou
 
@@ -132,9 +132,9 @@ As permissões estão explicadas em [PRIVACIDADE.md](docs/PRIVACIDADE.md). A val
 `npm run build` produz:
 
 - `dist/whatsapp-scoop-temporario/`: instalação temporária descompactada.
-- `dist/whatsapp-scoop-0.1.2-temporario.zip`: o mesmo pacote em ZIP.
-- `dist/whatsapp-scoop-0.1.2-nao-assinado.xpi`: pacote para enviar à Mozilla; **não instala permanentemente no Firefox comum antes de assinar**.
-- `dist/whatsapp-scoop-0.1.2-codigo-fonte.zip`: fonte para revisão/reprodução.
+- `dist/whatsapp-scoop-0.1.3-temporario.zip`: o mesmo pacote em ZIP.
+- `dist/whatsapp-scoop-0.1.3-nao-assinado.xpi`: pacote para enviar à Mozilla; **não instala permanentemente no Firefox comum antes de assinar**.
+- `dist/whatsapp-scoop-0.1.3-codigo-fonte.zip`: fonte para revisão/reprodução.
 
 Para distribuir permanentemente, envie o XPI para assinatura no [portal de extensões Mozilla](https://addons.mozilla.org/developers/), junto com o código-fonte quando solicitado. Configure o login Google antes de oferecer Drive como funcional. A assinatura, a publicação e a validação OAuth dependem das contas do mantenedor.
 
@@ -149,3 +149,15 @@ A [logo original do projeto](docs/branding/README.md) combina um balão de conve
 O botão **Baixar log de diagnóstico** fica disponível mesmo sem coleta ou após sucesso. Se o download falhar, abra **Ver ou copiar o log** e copie o texto. Envie o JSON ou o texto ao pedir ajuda. Ele contém versão, etapas, contagens e erros, sem incluir o conteúdo das mensagens, nomes da conversa ou credenciais. Não há envio automático. Os últimos 500 eventos ficam armazenados localmente.
 
 Se **Iniciar coleta** estiver apagado, a coleta anterior ainda está ativa ou pausada. Use **Continuar** para retomá-la na mesma conversa, ou **Encerrar e exportar** para preservar o material e liberar uma nova coleta. Prévia de link não é tratada como foto; controles de mídia que não possam ser identificados com segurança serão registrados como indisponíveis.
+
+### Links e referência das mídias
+
+A coluna **links** reúne os endereços presentes no texto, na legenda e nos destinos das ligações da mensagem (inclusive prévias), sem visitar os sites. Vários endereços são separados por ` | `. Endereços abreviados são preservados; a ferramenta não resolve redirecionamentos.
+
+Com **Incluir mídias** marcado, cada arquivo recuperado recebe um identificador como **MID-000001**. A coluna **midias_ids** contém os identificadores e a coluna **midias** contém os caminhos dos arquivos correspondentes, na mesma ordem: por exemplo, `midias/MID-000001.png`. O `indice_midias.json` e o relatório associam **midia_id**, **mensagem_id**, caminho e hash. Os identificadores são exclusivos dentro de cada coleta e seguem a ordem de recuperação, não a cronologia das mensagens. Guarde o ZIP junto do CSV para preservar essa associação.
+
+Apenas mídias enviadas na conversa são capturadas; imagens de prévias de sites não são substitutas dos arquivos originais. O download exige que a mídia esteja acessível na sessão. Controles não reconhecidos, arquivos expirados e downloads que falhem são registrados no relatório e no diagnóstico. Para aproveitar a identificação de vídeos e os links de destino adicionados na versão 0.1.3, faça uma nova coleta; esses dados não podem ser reconstruídos integralmente de CSVs antigos.
+
+### Interações por mensagem
+
+**interacoes_total** guarda a soma das reações exibida pelo WhatsApp, sem listar emojis ou participantes. **interacoes_precisao** indica `exata` quando o número completo está disponível, `aproximada` quando só há uma abreviação (ex.: “3,4 mil” vira 3400), ou `indisponivel` quando não foi possível ler a contagem. Nesse último caso o total fica vazio: ausência de dado não significa zero. **interacoes_observadas_em** registra quando a contagem foi lida. Ela pode mudar depois. Visualizações e compartilhamentos não são somados às reações.

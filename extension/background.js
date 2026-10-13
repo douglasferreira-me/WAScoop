@@ -105,7 +105,10 @@ async function processBatch(message) {
     await store.put("messages", { key, job: job.key, message: m });
     job.count++;
     if (m.data_hora) { if (!job.oldest || m.data_hora < job.oldest) job.oldest = m.data_hora; if (!job.newest || m.data_hora > job.newest) job.newest = m.data_hora; }
-    if (m._mediaError) { diagnostics.record("media_capture_failed", { operation: "media" }, new Error(m._mediaError)); job.mediaFailures++; job.failures.push({ mensagem_id: m.id, etapa: "midia", erro: m._mediaError }); }
+    for (const failure of m._mediaErrors || (m._mediaError ? [{ erro: m._mediaError }] : [])) {
+      diagnostics.record("media_capture_failed", { operation: "media" }, new Error(failure.erro)); job.mediaFailures++;
+      job.failures.push({ mensagem_id: m.id, etapa: "midia", ...failure });
+    }
   }
   diagnostics.record("batch_saved", { batchSize: message.messages.length, messages: job.count, mediaFailures: job.mediaFailures });
   job.unknownDates = message.unknownDates; job.fallbackIds ||= message.fallbackIds;
@@ -129,19 +132,22 @@ async function mediaEnd(m) {
   const digest = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
   const sha256 = Array.from(new Uint8Array(digest), x => x.toString(16).padStart(2, "0")).join("");
   const suffix = p.originalName?.match(/\.([a-zA-Z0-9]{1,8})$/)?.[1]?.toLowerCase() || C.mediaExtension(p.mime);
-  const path = `midias/${C.safeName(p.messageId)}-${sha256.slice(0, 12)}.${suffix}`;
-  const record = { key: `${job.key}:${p.mediaId}`, job: job.key, messageId: p.messageId, blob, path, mime: p.mime, size: p.size, sha256, source: p.captureSource, complete: true };
-  const existing = await store.get("media", record.key);
+  const mediaKey = `${job.key}:${p.mediaId}`;
+  const existing = await store.get("media", mediaKey);
+  const mediaId = existing?.id || `MID-${String(job.mediaCount + 1).padStart(6, "0")}`;
+  const path = existing?.path || `midias/${mediaId}.${suffix}`;
+  const record = { id: mediaId, key: mediaKey, job: job.key, messageId: p.messageId, blob, path, mime: p.mime, size: p.size, sha256, source: p.captureSource, complete: true };
   if (!existing) { await store.put("media", record); job.mediaCount++; job.bytes += p.size; }
   if (job.options.destination === "drive") {
     job.phase = "Enviando mídia ao Drive"; await publish();
     try { await uploadMedia(existing || record); } catch { /* Local blob saved; collector will pause after its batch. */ }
     job.phase = "Coletando histórico";
   }
-  await save(); return { ok: true, path, paused: job.status === "paused" };
+  await save(); return { ok: true, path, id: mediaId, paused: job.status === "paused" };
 }
 async function exportLocal() {
   if (!job || exportBusy || ["running", "stopping"].includes(job.status)) throw new Error("Pause ou encerre a coleta antes de exportar.");
+  if (job.status === "paused") { try { const settled = await collector("settle"); if (!settled?.ok) throw new Error(settled?.error || "Transferência ainda em andamento."); } catch (e) { if (pendingMedia.size || /ainda está sendo preservada|Transferência ainda em andamento/.test(e.message)) throw e; diagnostics.record("collector_unavailable_at_export", {}, e); } }
   diagnostics.record("archive_preparing", jobSummary(job));
   exportBusy = true; job.phase = "Preparando ZIP"; await publish();
   try {

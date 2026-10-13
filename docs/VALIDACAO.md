@@ -30,3 +30,9 @@ A versão 0.1.1 acrescenta a logo original do balão pesquisador com lupa, ícon
 ## Versão 0.1.2 — diagnóstico e navegação
 
 19 testes automáticos aprovados, incluindo não clicar em imagem dentro de link, não classificar prévia de link como mídia, restauração dos interceptadores e recuperação do log quando o download falha. Validação do pacote Firefox sem erros ou avisos desktop. A correção restringe a abertura a controles de mídia reconhecidos; quando não reconhecidos, registra uma falha sem usar miniaturas. Não foi validada em uma sessão real Waterfox/WhatsApp; o relatório fornecido pelo usuário mostrou uma coleta pausada com 3 mensagens, 0 mídias e 1 falha.
+
+## Versão 0.1.3 — mídias, referências, links, reações e logo
+
+25 testes automáticos aprovados e lint desktop sem erros ou avisos. Teste no Waterfox 153.4.0, em perfil descartável, aprovado com 35 mensagens e 6 arquivos recuperados (foto, documento, áudio, vídeo e figurinha), além de 1 mídia deliberadamente indisponível. Inclui duas fotos com bytes idênticos, com identificadores distintos. Verificadas referências `MID` no CSV, índice e nomes dos arquivos, links com parâmetros e total exato de reações. Coleta parcial de canal com 10 mensagens, pausa/retomada e download de diagnóstico antes e depois da coleta aprovados.
+
+As conversas deste teste são sintéticas e locais. O formato acessível de contagem de reações foi observado na interface real do canal, mas o download de todas as mídias desse canal ainda depende de confirmação com a sessão real. Não houve teste de credenciais Google Drive. O pacote não apresenta mídia indisponível como recuperada.
