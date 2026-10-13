@@ -4,6 +4,7 @@ from pathlib import Path
 import hashlib
 import json
 import shutil
+import subprocess
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -23,6 +24,7 @@ def main():
     dependency = ROOT / "node_modules/@zip.js/zip.js"
     if not dependency.exists():
         raise SystemExit("Execute npm ci antes de empacotar.")
+    subprocess.run(["node", str(ROOT / "scripts/brand.cjs")], check=True, cwd=ROOT)
     vendor = EXT / "vendor"
     vendor.mkdir(exist_ok=True)
     shutil.copyfile(dependency / "dist/zip-native.js", vendor / "zip.js")
@@ -41,7 +43,7 @@ def main():
     sources += [p for p in (ROOT / ".github").rglob("*") if p.is_file()]
     archive(DIST / f"whatsapp-scoop-{version}-codigo-fonte.zip", sources, ROOT)
     hashes = []
-    for p in sorted(DIST.glob("*")):
+    for p in sorted(DIST.glob(f"whatsapp-scoop-{version}-*")):
         if p.is_file() and p.suffix in [".zip", ".xpi"]:
             hashes.append(f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}")
     (DIST / "SHA256SUMS.txt").write_text("\n".join(hashes) + "\n")

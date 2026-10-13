@@ -22,3 +22,7 @@ O teste Firefox usa uma cópia da extensão com duas adaptações **somente para
 - Corpus de grande volume ou retomada de upload após expiração da sessão no próprio Google.
 
 O roteiro para completar esses testes está em [TESTES.md](TESTES.md). Nenhuma dessas pendências é apresentada na interface como funcionalidade já verificada em uma conta real.
+
+## Atualização visual 0.1.1
+
+A versão 0.1.1 acrescenta a logo original do balão pesquisador com lupa, ícones PNG em sete tamanhos e a marca no README do GitHub. O painel usa a nova fonte SVG. O comportamento de coleta permanece o da versão 0.1.0; a revisão visual, o empacotamento e a análise dos ícones/manifesto são realizados para a nova versão.

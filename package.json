@@ -1,6 +1,6 @@
 {
   "name": "whatsapp-scoop",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Extensão Firefox para coleta acadêmica no WhatsApp Web",
   "license": "GPL-3.0-only",
@@ -15,6 +15,7 @@
     "@zip.js/zip.js": "2.8.26"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "2.6.2",
     "fake-indexeddb": "6.0.1",
     "jsdom": "26.1.0",
     "selenium-webdriver": "4.27.0",

@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/branding/logo.png" width="176" alt="Logo Whatsapp Scoop: um balão pesquisador sorridente com óculos e uma lupa">
+</p>
+
 # Whatsapp Scoop
 
 **Uma extensão Firefox para transformar o histórico acessível de um grupo ou canal do WhatsApp em material de pesquisa.** Produzida por [douglasferreira](https://douglasferreira.me).
@@ -10,7 +14,7 @@ Você abre a conversa no WhatsApp Web, inicia a coleta e recebe uma planilha CSV
 
 Você **não precisa instalar Python nem aprender programação** para usar o pacote pronto. Use Firefox para computador, versão **140 ou posterior**.
 
-1. Baixe [`whatsapp-scoop-0.1.0-temporario.zip`](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.1.0-beta/whatsapp-scoop-0.1.0-temporario.zip) na [versão beta](https://github.com/douglasferreira-me/WAScoop/releases/tag/v0.1.0-beta). Se você está na pasta do projeto, ele está dentro de `dist/`.
+1. Baixe [`whatsapp-scoop-0.1.1-temporario.zip`](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.1.1-beta/whatsapp-scoop-0.1.1-temporario.zip) na [versão beta](https://github.com/douglasferreira-me/WAScoop/releases/tag/v0.1.1-beta). Se você está na pasta do projeto, ele está dentro de `dist/`.
 2. Extraia o ZIP em uma pasta. Não tente instalá-lo como uma extensão permanente.
 3. No Firefox para computador, digite **`about:debugging`** na barra de endereço.
 4. Clique em **Este Firefox** e depois em **Carregar extensão temporária**.
@@ -79,7 +83,7 @@ O login direto escolhido usa um fluxo OAuth legado, atualmente desaconselhado pe
 
 Na metodologia, registre as datas, a versão, o intervalo solicitado, a conta com acesso ao grupo/canal e as falhas do relatório. Revise dados pessoais antes de compartilhar o corpus ou publicar exemplos.
 
-Exemplo de referência: **douglasferreira. Whatsapp Scoop, versão 0.1.0. Disponível em https://github.com/douglasferreira-me/WAScoop. Coleta realizada em [data].**
+Exemplo de referência: **douglasferreira. Whatsapp Scoop, versão 0.1.1. Disponível em https://github.com/douglasferreira-me/WAScoop. Coleta realizada em [data].**
 
 ## Algo não funcionou
 
@@ -128,12 +132,14 @@ As permissões estão explicadas em [PRIVACIDADE.md](docs/PRIVACIDADE.md). A val
 `npm run build` produz:
 
 - `dist/whatsapp-scoop-temporario/`: instalação temporária descompactada.
-- `dist/whatsapp-scoop-0.1.0-temporario.zip`: o mesmo pacote em ZIP.
-- `dist/whatsapp-scoop-0.1.0-nao-assinado.xpi`: pacote para enviar à Mozilla; **não instala permanentemente no Firefox comum antes de assinar**.
-- `dist/whatsapp-scoop-0.1.0-codigo-fonte.zip`: fonte para revisão/reprodução.
+- `dist/whatsapp-scoop-0.1.1-temporario.zip`: o mesmo pacote em ZIP.
+- `dist/whatsapp-scoop-0.1.1-nao-assinado.xpi`: pacote para enviar à Mozilla; **não instala permanentemente no Firefox comum antes de assinar**.
+- `dist/whatsapp-scoop-0.1.1-codigo-fonte.zip`: fonte para revisão/reprodução.
 
 Para distribuir permanentemente, envie o XPI para assinatura no [portal de extensões Mozilla](https://addons.mozilla.org/developers/), junto com o código-fonte quando solicitado. Configure o login Google antes de oferecer Drive como funcional. A assinatura, a publicação e a validação OAuth dependem das contas do mantenedor.
 
 O projeto mantém a licença **GPL-3.0** já presente no repositório. A biblioteca zip.js tem licença BSD-3-Clause, incluída no pacote em `extension/vendor/LICENSE.zipjs`.
 
 Confira [o que foi validado e o que ainda depende de teste real](docs/VALIDACAO.md) antes de usar o corpus como base de um artigo.
+
+A [logo original do projeto](docs/branding/README.md) combina um balão de conversa curioso com uma lupa. Ela está no painel, nos ícones do Firefox e no topo deste README.
