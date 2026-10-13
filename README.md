@@ -14,7 +14,7 @@ Você abre a conversa no WhatsApp Web, inicia a coleta e recebe uma planilha CSV
 
 Você **não precisa instalar Python nem aprender programação** para usar o pacote pronto. Use Firefox para computador, versão **140 ou posterior**.
 
-1. Baixe [`whatsapp-scoop-0.1.3-temporario.zip`](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.1.3-beta/whatsapp-scoop-0.1.3-temporario.zip) na [versão beta](https://github.com/douglasferreira-me/WAScoop/releases/tag/v0.1.3-beta). Se você está na pasta do projeto, ele está dentro de `dist/`.
+1. Baixe [`whatsapp-scoop-0.1.4-temporario.zip`](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.1.4-beta/whatsapp-scoop-0.1.4-temporario.zip) na [versão beta](https://github.com/douglasferreira-me/WAScoop/releases/tag/v0.1.4-beta). Se você está na pasta do projeto, ele está dentro de `dist/`.
 2. Extraia o ZIP em uma pasta. Não tente instalá-lo como uma extensão permanente.
 3. No Firefox para computador, digite **`about:debugging`** na barra de endereço.
 4. Clique em **Este Firefox** e depois em **Carregar extensão temporária**.
@@ -132,9 +132,9 @@ As permissões estão explicadas em [PRIVACIDADE.md](docs/PRIVACIDADE.md). A val
 `npm run build` produz:
 
 - `dist/whatsapp-scoop-temporario/`: instalação temporária descompactada.
-- `dist/whatsapp-scoop-0.1.3-temporario.zip`: o mesmo pacote em ZIP.
-- `dist/whatsapp-scoop-0.1.3-nao-assinado.xpi`: pacote para enviar à Mozilla; **não instala permanentemente no Firefox comum antes de assinar**.
-- `dist/whatsapp-scoop-0.1.3-codigo-fonte.zip`: fonte para revisão/reprodução.
+- `dist/whatsapp-scoop-0.1.4-temporario.zip`: o mesmo pacote em ZIP.
+- `dist/whatsapp-scoop-0.1.4-nao-assinado.xpi`: pacote para enviar à Mozilla; **não instala permanentemente no Firefox comum antes de assinar**.
+- `dist/whatsapp-scoop-0.1.4-codigo-fonte.zip`: fonte para revisão/reprodução.
 
 Para distribuir permanentemente, envie o XPI para assinatura no [portal de extensões Mozilla](https://addons.mozilla.org/developers/), junto com o código-fonte quando solicitado. Configure o login Google antes de oferecer Drive como funcional. A assinatura, a publicação e a validação OAuth dependem das contas do mantenedor.
 

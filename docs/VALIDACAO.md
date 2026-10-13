@@ -36,3 +36,7 @@ A versão 0.1.1 acrescenta a logo original do balão pesquisador com lupa, ícon
 25 testes automáticos aprovados e lint desktop sem erros ou avisos. Teste no Waterfox 153.4.0, em perfil descartável, aprovado com 35 mensagens e 6 arquivos recuperados (foto, documento, áudio, vídeo e figurinha), além de 1 mídia deliberadamente indisponível. Inclui duas fotos com bytes idênticos, com identificadores distintos. Verificadas referências `MID` no CSV, índice e nomes dos arquivos, links com parâmetros e total exato de reações. Coleta parcial de canal com 10 mensagens, pausa/retomada e download de diagnóstico antes e depois da coleta aprovados.
 
 As conversas deste teste são sintéticas e locais. O formato acessível de contagem de reações foi observado na interface real do canal, mas o download de todas as mídias desse canal ainda depende de confirmação com a sessão real. Não houve teste de credenciais Google Drive. O pacote não apresenta mídia indisponível como recuperada.
+
+## Versão 0.1.4 — logo do pesquisador
+
+Alteração visual: balão com carinha de óculos e sorriso. PNG de 512 pixels inspecionado, ícones gerados do mesmo SVG e pacotes reconstruídos. Lint desktop sem erros ou avisos. Código de coleta permanece igual ao da versão 0.1.3; os testes funcionais documentados acima correspondem a essa implementação.

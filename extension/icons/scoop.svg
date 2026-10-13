@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
-  <title id="title">Whatsapp Scoop — balão e lupa</title>
+  <title id="title">Whatsapp Scoop — pesquisador de óculos sorrindo</title>
   <path fill="#168b61" d="M128 56h256a72 72 0 0 1 72 72v208a72 72 0 0 1-72 72H202l-91 55 13-55a72 72 0 0 1-68-72V128a72 72 0 0 1 72-72Z"/>
-  <path fill="none" stroke="#fff" stroke-width="30" stroke-linecap="round" d="M296 184a72 72 0 1 0-102 102 72 72 0 0 0 102-102m0 102 56 56"/>
+  <path fill="none" stroke="#fff" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" d="M116 214h28m92 0h40m92 0h28M174 170h32q30 0 30 30v34q0 30-30 30h-32q-30 0-30-30v-34q0-30 30-30Zm132 0h32q30 0 30 30v34q0 30-30 30h-32q-30 0-30-30v-34q0-30 30-30ZM190 219h0m132 0h0M218 314q38 32 76 0"/>
 </svg>
