@@ -46,6 +46,16 @@ export class Store {
       after = rows[rows.length - 1].key;
     }
   }
+  async findMessage(job, id) {
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction("messages"), req = tx.objectStore("messages").index("job").openCursor(IDBKeyRange.only(job));
+      req.onsuccess = () => { const c = req.result; if (!c) resolve(null); else if (c.value.message.id === id) resolve(c.value); else c.continue(); };
+      req.onerror = () => reject(req.error);
+    });
+  }
+  replaceMessage(previousKey, record) {
+    return this.transaction("messages", "readwrite", s => { if (previousKey && previousKey !== record.key) s.delete(previousKey); return s.put(record); });
+  }
   async deleteJob(job) {
     for (const name of ["messages", "media"]) {
       await new Promise((resolve, reject) => {

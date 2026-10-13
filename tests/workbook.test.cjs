@@ -43,7 +43,7 @@ test("XLSX mantém textos, datas, números e vínculos sem fórmulas ou identifi
   assert.equal(value(records[1], "U"), m.link_mensagem);
   assert.equal(value(records[1], "G"), "0"); assert.equal(records[1].querySelector('c[r="G2"]').getAttribute("t"), null);
   assert.equal(value(records[1], "I"), m.links[0] + " | https://example.com"); assert.equal(value(records[1], "J"), "MID-000001"); assert.equal(value(records[1], "K"), "midias/MID-000001.png");
-  assert.equal(sheet.querySelector("autoFilter").getAttribute("ref"), "A1:U3"); assert.equal(sheet.querySelector("pane").getAttribute("state"), "frozen");
+  assert.equal(sheet.querySelector("autoFilter").getAttribute("ref"), "A1:W3"); assert.equal(sheet.querySelector("pane").getAttribute("state"), "frozen");
   const media = rows(archive.document("xl/worksheets/sheet3.xml"));
   assert.equal(media.length, 2); assert.equal(value(media[1], "A"), "MID-000001"); assert.equal(value(media[1], "B"), "m1"); assert.equal(Number(value(media[1], "E")), 4);
   const rel = archive.document("xl/worksheets/_rels/sheet3.xml.rels").querySelector("Relationship");
@@ -97,5 +97,5 @@ test("ZIP padrão não gera XLSX; JSONs vão para .system e exportação vazia p
   } finally { ScoopWorkbook.create = original; }
   const archive = await read(await ScoopWorkbook.create(store([]), job(), { message: m => m }));
   assert.equal(rows(archive.document("xl/worksheets/sheet2.xml")).length, 1);
-  assert.equal(archive.document("xl/worksheets/sheet2.xml").querySelector("autoFilter").getAttribute("ref"), "A1:U1");
+  assert.equal(archive.document("xl/worksheets/sheet2.xml").querySelector("autoFilter").getAttribute("ref"), "A1:W1");
 });

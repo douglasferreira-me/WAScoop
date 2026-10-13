@@ -128,24 +128,32 @@
         }
         const messages = s.timeline.observe(parsed);
         s.emptyRecords ||= new Set();
-        if (messages.some(m => !s.seen.has(m.id) && !m._afterBoundary && !C.isEmptyMessage(m) && (!m.data_hora || m.tipo === "texto" && !m.texto && !m.legenda))) {
-          s.metadataRetries ||= new Map();
-          const retries = s.metadataRetries.get(messages.map(m => m.id).join("|")) || 0;
-          if (retries < 3) { s.metadataRetries.set(messages.map(m => m.id).join("|"), retries + 1); await delay(750); continue; }
-          await pause("Algumas mensagens ainda não disponibilizaram data ou texto. A coleta pausou para evitar registros incompletos. Aguarde e use Continuar, ou encerre com exportação parcial.");
-          continue;
+        s.pendingMetadata ||= new Map();
+        s.metadataRetries ||= new Map();
+        const incomplete = messages.filter(m => !s.seen.has(m.id) && !m._afterBoundary && !C.isEmptyMessage(m) && C.assessCapture(m).status_captura === "incompleta");
+        if (incomplete.some(m => (s.metadataRetries.get(m.id) || 0) < 3)) {
+          for (const m of incomplete) s.metadataRetries.set(m.id, (s.metadataRetries.get(m.id) || 0) + 1);
+          await delay(750); continue;
         }
-        s.metadataRetries?.clear();
         const signature = messages.map(m => m.id).join("|");
         const payload = [];
         for (let i = 0; i < messages.length; i++) {
           if (s.stopped || s.paused) break;
-          const m = messages[i];
+          let m = messages[i];
           if (C.isEmptyMessage(m)) { s.emptyRecords.add(m.id); continue; }
           if (m._afterBoundary) continue;
           if (m.data_hora && +new Date(m.data_hora) > s.startedAt) continue;
+          if (m.data_hora) s.unknownDates.delete(m.id);
           if (!C.inRange(m.data_hora, s.options.start, s.options.end)) { if (!m.data_hora) s.unknownDates.add(m.id); continue; }
-          if (s.seen.has(m.id)) continue;
+          if (s.seen.has(m.id)) {
+            const pending = s.pendingMetadata.get(m.id);
+            if (pending) {
+              const observed = C.assessCapture(m);
+              if (pending.campos_ausentes.some(field => !observed.campos_ausentes.includes(field))) { observed._repair = true; observed._repairKey = pending.key; payload.push(observed); }
+            }
+            continue;
+          }
+          m = C.assessCapture(m);
           s.inMessage = true;
           const media = [], mediaIds = [];
           if (s.options.media && m.tipo !== "texto") {
@@ -189,7 +197,12 @@
         }
         const result = await send({ type: "batch", job: s.job, messages: payload, emptyRecords: s.emptyRecords.size, unknownDates: s.unknownDates.size, fallbackIds: messages.some(m => m._fallback) });
         if (!result.ok) throw new Error(result.error);
-        for (const m of payload) s.seen.add(m.id);
+        for (const m of payload) {
+          s.seen.add(m.id); s.metadataRetries.delete(m.id);
+          const quality = result.metadataStatuses?.[m.id] || m;
+          if (quality.status_captura === "incompleta") s.pendingMetadata.set(m.id, { id: m.id, campos_ausentes: quality.campos_ausentes, key: quality.key });
+          else s.pendingMetadata.delete(m.id);
+        }
         s.inMessage = false;
         if (result.paused) { s.paused = true; continue; }
         if (s.stopped) break;
@@ -230,6 +243,19 @@
           continue;
         }
         if (scroll.idle >= 5 && recoveries >= 3) {
+          if (scroll.atTop && s.pendingMetadata.size && !s.finalMetadataAttempt) {
+            s.finalMetadataAttempt = true;
+            const metadata = await send({ type: "message-metadata", job: s.job, ids: [...s.pendingMetadata.keys()] });
+            const repairs = [...s.pendingMetadata.values()].filter(p => metadata.messages?.[p.id]).map(p => ({ ...C.applyMessageMetadata({ id: p.id, tipo: "texto" }, metadata.messages[p.id], metadata.links?.[p.id]), _repair: true, _repairKey: p.key }));
+            if (repairs.length) {
+              const repaired = await send({ type: "batch", job: s.job, messages: repairs, emptyRecords: s.emptyRecords.size, unknownDates: s.unknownDates.size, fallbackIds: false });
+              if (!repaired.ok) throw new Error(repaired.error);
+              for (const [id, status] of Object.entries(repaired.metadataStatuses || {})) {
+                if (status.status_captura === "completa") s.pendingMetadata.delete(id);
+                else s.pendingMetadata.set(id, { id, campos_ausentes: status.campos_ausentes, key: status.key });
+              }
+            }
+          }
           if (scroll.atTop) {
             s.stopped = true;
             await send({ type: "finished", job: s.job, reason: "limite_observado", unknownDates: s.unknownDates.size }); break;

@@ -73,3 +73,11 @@ test('histórico ancorado e mudanças na altura reiniciam detecção de travamen
  for(let i=0;i<8;i++)assert.equal(t.observe({signature:'a,b,c'+i,count:3+i,top:1100,height:2000}).idle,0);
  assert.equal(t.observe({signature:'a,b,c7',count:10,top:1100,height:2400}).idle,0);
 });
+test('pendências são explícitas e atualização preserva mídia sem inventar dados',()=>{
+ const pending=C.assessCapture({...message('m',''),data_hora:'',tipo:'video',midias_ids:['MID-000001'],midias:['midias/MID-000001.mp4']});
+ assert.equal(pending.status_captura,'incompleta');assert.deepEqual(pending.campos_ausentes,['data_hora']);
+ const complete=C.mergeCapture(pending,{id:'m',tipo:'texto',data_hora:'2026-10-13T12:00:00Z',texto:''});
+ assert.equal(complete.tipo,'video');assert.equal(complete.status_captura,'completa');assert.deepEqual(complete.midias_ids,['MID-000001']);assert.deepEqual(complete.midias,pending.midias);
+ const text=C.assessCapture({...message('t',''),data_hora:''});assert.deepEqual(text.campos_ausentes,['data_hora','texto']);
+ assert.equal(C.mergeCapture(text,{tipo:'texto',texto:'Recuperado'}).status_captura,'incompleta');
+});

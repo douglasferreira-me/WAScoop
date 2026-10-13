@@ -30,3 +30,11 @@ test("persistência, paginação, ZIP fiel e remoção isolada de uma coleta", a
   const second = new Store(); await second.open(); assert.equal((await second.get("jobs", "j1")).count, 125);
   await s.deleteJob("j1"); assert.equal(await s.get("jobs", "j1"), undefined); assert.ok(await s.get("messages", "j2:a"));
 });
+test('recuperar data move o registro atomicamente sem duplicar mensagem ou perder mídia',async()=>{
+ const {Store}=await importFile('lib/store.js');const s=new Store();await s.open();
+ const old={key:'repair:9999:m',job:'repair',message:{...message('m',''),data_hora:'',tipo:'video',midias:['midias/MID-000001.mp4'],status_captura:'incompleta',campos_ausentes:['data_hora']}};
+ await s.put('messages',old);const found=await s.findMessage('repair','m');assert.equal(found.key,old.key);
+ const repaired=global.ScoopCore.mergeCapture(found.message,{tipo:'video',data_hora:'2026-10-13T12:00:00Z'});
+ await s.replaceMessage(found.key,{key:'repair:2026:m',job:'repair',message:repaired});
+ assert.equal(await s.get('messages',old.key),undefined);let count=0;for await(const row of s.records('messages','repair')){count++;assert.equal(row.message.status_captura,'completa');assert.deepEqual(row.message.midias,old.message.midias);}assert.equal(count,1);await s.deleteJob('repair');
+});

@@ -102,21 +102,34 @@ async function processBatch(message) {
   if (!job || message.job !== job.key) throw new Error("Coleta inválida.");
   job.emptyRecords = message.emptyRecords || 0;
 
-  for (const m of message.messages) {
+  job.incompleteCount ||= 0;
+  const metadataStatuses = {};
+  for (let m of message.messages) {
+    const candidate = m._repair && m._repairKey ? await store.get("messages", m._repairKey) : null;
+    const previous = m._repair ? candidate?.job === job.key && candidate.message.id === m.id ? candidate : await store.findMessage(job.key, m.id) : null;
+    if (previous) m = C.mergeCapture(previous.message, m);
+    else m = C.assessCapture(m);
     const sort = m.data_hora || "9999-sem-data";
     const key = `${job.key}:${sort}:${m.id}`;
-    if (await store.get("messages", key)) continue;
-    await store.put("messages", { key, job: job.key, message: m });
-    job.count++;
+    if (!previous && await store.get("messages", key)) continue;
+    await store.replaceMessage(previous?.key, { key, job: job.key, message: m });
+    metadataStatuses[m.id] = { key, status_captura: m.status_captura, campos_ausentes: m.campos_ausentes };
+    if (!previous) job.count++;
+    job.incompleteCount += Number(m.status_captura === "incompleta") - Number(previous?.message.status_captura === "incompleta");
+    if (previous) job.failures = job.failures.filter(f => !(f.etapa === "metadados" && f.mensagem_id === m.id));
+    if (m.status_captura === "incompleta") job.failures.push({ mensagem_id: m.id, etapa: "metadados", campos_ausentes: m.campos_ausentes, erro: "Campos indisponíveis após tentativas automáticas; coleta continuou." });
     if (m.data_hora) { if (!job.oldest || m.data_hora < job.oldest) job.oldest = m.data_hora; if (!job.newest || m.data_hora > job.newest) job.newest = m.data_hora; }
+    if (previous) continue;
     for (const failure of m._mediaErrors || (m._mediaError ? [{ erro: m._mediaError }] : [])) {
       diagnostics.record("media_capture_failed", { operation: "media" }, new Error(failure.erro)); job.mediaFailures++;
       job.failures.push({ mensagem_id: m.id, etapa: "midia", ...failure });
     }
   }
+  if (job.incompleteCount) job.notice = `${job.incompleteCount} mensagem(ns) com campos pendentes. A coleta continua; consulte status_captura no CSV e o relatório.`;
+  else if (job.notice?.includes("campos pendentes")) job.notice = "";
   diagnostics.record("batch_saved", { batchSize: message.messages.length, messages: job.count, mediaFailures: job.mediaFailures });
   job.unknownDates = message.unknownDates; job.fallbackIds ||= message.fallbackIds;
-  await save(); return { ok: true, paused: job.status === "paused" };
+  await save(); return { ok: true, paused: job.status === "paused", metadataStatuses };
 }
 async function mediaStart(m) {
   if (pendingMedia.size >= 1) throw new Error("Transferência de mídia já em andamento.");
@@ -181,7 +194,7 @@ async function exportLocal() {
     let id;
     try { id = await browser.downloads.download({ url, filename: `Whatsapp-Scoop-${C.safeName(job.conversation.title)}-${job.startedAt.slice(0, 10)}.zip`, saveAs: true }); }
     catch (e) { URL.revokeObjectURL(url); throw e; }
-    downloadUrls.set(id, { url, kind: "archive" }); diagnostics.record("archive_download_started", { downloadId: id, bytes: blob.size }); job.notice = "ZIP enviado ao gerenciador de downloads do Firefox.";
+    downloadUrls.set(id, { url, kind: "archive" }); diagnostics.record("archive_download_started", { downloadId: id, bytes: blob.size }); job.notice = "ZIP enviado ao gerenciador de downloads do Firefox." + (job.incompleteCount ? ` ${job.incompleteCount} mensagem(ns) com campos não recuperados; consulte status_captura e o relatório.` : "");
   } catch (e) { diagnostics.record("export_failed", { operation: job.options.destination }, e); job.notice = "Exportação falhou. Tente novamente ou baixe o log de diagnóstico."; throw e; } finally { exportBusy = false; job.phase = "Coleta preservada"; await save(); }
 }
 async function finishDrive() {
@@ -202,12 +215,13 @@ async function finishDrive() {
       const result = await drive.upload(name.split("/").pop(), blob, folder, () => {}, old?.session, async url => { job.finalUploads[name] = { session: url }; await save(); });
       job.finalUploads[name] = { id: result.id }; await save();
     }
-    job.notice = `CSV${job.options.workbook ? ", XLSX" : ""}, mídias e arquivos técnicos enviados ao Drive.`;
+    job.notice = `CSV${job.options.workbook ? ", XLSX" : ""}, mídias e arquivos técnicos enviados ao Drive.` + (job.incompleteCount ? ` ${job.incompleteCount} mensagem(ns) com campos não recuperados; consulte o relatório.` : "");
   } catch (e) { diagnostics.record("export_failed", { operation: job.options.destination }, e); job.notice = "Exportação falhou. Tente novamente ou baixe o log de diagnóstico."; throw e; } finally { exportBusy = false; job.phase = "Coleta preservada"; await save(); }
 }
 async function finalize(reason) {
   job.finishedAt = now(); job.status = reason === "intervalo" || reason === "limite_observado" ? "finished" : "interrupted"; job.reason = reason;
   job.phase = "Coleta encerrada"; job.notice = reason === "limite_observado" ? "Limite observado da rolagem. Não há garantia de histórico integral." : "Coleta encerrada; consulte o relatório.";
+  if (job.incompleteCount) job.notice += ` ${job.incompleteCount} mensagem(ns) com campos não recuperados; consulte status_captura e o relatório.`;
   await save();
   if (job.options.destination === "zip") await exportLocal();
   else { try { await finishDrive(); } catch (e) { job.notice = e.message; await save(); } }

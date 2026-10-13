@@ -23,14 +23,14 @@ function render(state) {
   $("redirect").textContent = state.redirect;
   if (!j) return;
   $("progress-title").textContent = `Sua coleta · ${j.conversation.title}`;
-  $("status").textContent = labels[j.status] || j.status;
+  $("status").textContent = (j.status === "finished" && j.incompleteCount ? "encerrada com pendências" : labels[j.status]) || j.status;
   $("phase").textContent = j.phase;
   $("messages-count").textContent = j.count.toLocaleString("pt-BR");
   $("media-count").textContent = j.mediaCount.toLocaleString("pt-BR");
   $("bytes-count").textContent = bytes(j.bytes);
   const fmt = value => value ? new Date(value).toLocaleString("pt-BR") : "data desconhecida";
   $("period").textContent = j.oldest ? `Período alcançado: ${fmt(j.oldest)} — ${fmt(j.newest)}` : "O período aparecerá quando houver datas reconhecidas.";
-  $("failures").textContent = `${j.mediaFailures} falha(s) de mídia${j.unknownDates ? ` · ${j.unknownDates} mensagem(ns) sem data excluída(s) pelo filtro` : ""}`;
+  $("failures").textContent = `${j.incompleteCount || 0} mensagem(ns) com campos pendentes · ${j.mediaFailures} falha(s) de mídia${j.unknownDates ? ` · ${j.unknownDates} mensagem(ns) sem data excluída(s) pelo filtro` : ""}`;
   $("notice").textContent = (j.notice || "O total de mensagens não é conhecido antes da coleta.") + (j.status === "paused" ? " Use Continuar na conversa original ou Encerrar e exportar para liberar uma nova coleta." : "");
   $("pause").hidden = j.status !== "running"; $("resume").hidden = j.status !== "paused";
   $("stop").disabled = !["running", "paused"].includes(j.status) || state.exportBusy;

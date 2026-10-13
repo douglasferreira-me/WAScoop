@@ -19,7 +19,7 @@
     ["encaminhada", "Encaminhada", 18], ["numero", "Número do remetente", 25], ["conversa", "Conversa", 32],
     ["tipo_conversa", "Tipo de conversa", 22], ["data_original", "Data observada na página", 32],
     ["interacoes_observadas_em", "Interações observadas em (UTC)", 32, "date"],
-    ["data_hora_iso", "Data/hora ISO original", 30], ["link_mensagem", "Link permanente da mensagem", 60]
+    ["data_hora_iso", "Data/hora ISO original", 30], ["link_mensagem", "Link permanente da mensagem", 60], ["status_captura", "Qualidade da captura", 24], ["campos_ausentes", "Campos pendentes", 30]
   ];
   const mediaColumns = [
     ["id", "Mídia ID", 23], ["messageId", "Mensagem ID", 28], ["path", "Arquivo de mídia", 48],
@@ -127,7 +127,7 @@
     if (!Number.isSafeInteger(maxRows) || maxRows < 1 || maxRows > MAX_ROWS) throw new Error("Limite de linhas XLSX inválido.");
     zip.configure({ useWebWorkers: false, useCompressionStream: false });
     const writer = new zip.ZipWriter(new zip.BlobWriter(MIME)), sheets = [];
-    const timestamp = new Date(job.startedAt), stats = { messages: 0, media: 0, longFields: 0, datesUnknown: 0, types: new Map() };
+    const timestamp = new Date(job.startedAt), stats = { messages: 0, media: 0, longFields: 0, incomplete: 0, datesUnknown: 0, types: new Map() };
     const add = (path, xml) => writer.add(path, new zip.TextReader(xml), { level: 6, lastModDate: timestamp });
     async function *messages() {
       const names = new Map();
@@ -183,7 +183,7 @@
       sheets.push({ name: "Resumo", id: 1 });
       progress("Preparando planilha XLSX");
       await addSheets("Mensagens", messageColumns, messages(), m => {
-        stats.messages++; if (dateValue(m.data_hora) === null) stats.datesUnknown++;
+        stats.messages++; if (m.status_captura === "incompleta") stats.incomplete++; if (dateValue(m.data_hora) === null) stats.datesUnknown++;
         const type = m.tipo || "não identificado"; stats.types.set(type, (stats.types.get(type) || 0) + 1);
         for (const [field] of messageColumns) if (joined(m[field]).length > MAX_TEXT) stats.longFields++;
       });
@@ -200,7 +200,7 @@
         ["Data inicial solicitada", job.options.start || "Sem filtro"], ["Data final solicitada", job.options.end || "Sem filtro"],
         ["Primeira data observada (UTC)", job.oldest || "", "date"], ["Última data observada (UTC)", job.newest || "", "date"],
         ["Mensagens na planilha", stats.messages, "number"], ["Mídias recuperadas", stats.media, "number"],
-        ["Falhas de mídia", job.mediaFailures || 0, "number"], ["Volume das mídias (bytes)", job.bytes || 0, "number"],
+        ["Mensagens com campos pendentes", stats.incomplete, "number"], ["Falhas de mídia", job.mediaFailures || 0, "number"], ["Volume das mídias (bytes)", job.bytes || 0, "number"],
         ["Mensagens sem data reconhecida", stats.datesUnknown, "number"],
         ["Sem data excluídas pelo filtro", job.unknownDates || 0, "number"],
         ["Campos acima do limite de célula", stats.longFields, "number"],

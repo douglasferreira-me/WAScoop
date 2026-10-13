@@ -136,18 +136,19 @@ async function main() {
     await driver.switchTo().window(panelTab);
     assert.equal((await call("start", { options: { media: false, workbook: false, pseudonymize: false, destination: "zip", start: "", end: "" } })).ok, true);
     let guarded;
-    for (let n=0;n<30;n++) { guarded=(await call("state")).state; if(guarded.job.status==='paused')break; await wait(250); }
-    assert.equal(guarded.job.status,"paused"); assert.match(guarded.job.notice,/registros incompletos/); assert.equal(guarded.job.count,0);
-    await driver.switchTo().window(fixtureTab); await driver.executeScript("WPP.chat.getActiveChat=window.originalActiveChat");
-    await driver.switchTo().window(panelTab); assert.equal((await call("resume")).ok,true);
-    for(let n=0;n<120;n++){guarded=(await call("state")).state;if(guarded.job.status==='finished'&&!guarded.exportBusy)break;await wait(1000);}
-    assert.equal(guarded.job.status,'finished'); assert.equal(guarded.job.count,35);
+    for(let n=0;n<150;n++){guarded=(await call("state")).state;assert.notEqual(guarded.job.status,'paused','Um metadado ausente não deve exigir Continuar');if(guarded.job.status==='finished'&&!guarded.exportBusy)break;await wait(1000);}
+    assert.equal(guarded.job.status,'finished'); assert.equal(guarded.job.count,35);assert.equal(guarded.job.incompleteCount,1);
+    assert.match(guarded.job.notice,/campos não recuperados/);
     for(let n=0;n<20;n++){archives=(await fs.readdir(downloads)).filter(n=>n.endsWith('.zip'));if(archives.length===3)break;await wait(250);}
     assert.equal(archives.length,3);
     const resumedArchive=archives.find(name=>!previousArchives.has(name));
     const resumedReader=new zip.ZipReader(new zip.Uint8ArrayReader(await fs.readFile(path.join(downloads,resumedArchive))));
-    const resumedEntries=await resumedReader.getEntries();assert.ok(!resumedEntries.some(e=>e.filename==='mensagens.xlsx'));await resumedReader.close();
-    await fs.writeFile("docs/firefox-fixture-result.json", JSON.stringify({ extensionVersion: manifest.version, browser: (await driver.getCapabilities()).get("browserVersion"), fixture: "grupo e canal sintéticos locais; API WPP simulada; não WhatsApp real", messages: state.job.count, media: state.job.mediaCount, failures: state.job.mediaFailures, partialChannelMessages: partial.job.count, checked: ["instalação temporária", "painel", "rolagem com sobreposição", "pausa", "troca de conversa", "retomada", "API de sessão simulada em MAIN", "download original via hook Firefox como fallback", "foto Abrir imagem", "álbum com dois arquivos idênticos e IDs distintos", "links no CSV", "total de interações no CSV", "associação MID no CSV/índice/arquivo", "diagnóstico antes e depois da coleta", "ZIP real", "XLSX opcional com filtros e tipos numéricos", "JSONs em .system", "links permanentes de canal pela API simulada", "texto e data ausentes no DOM recuperados pela API", "contêiner vazio não contado", "pausa por metadados incompletos e retomada após recuperação", "exportação padrão sem XLSX", "rolagem avança por mais de oito ciclos com IDs inalterados", "pseudônimos", "canal", "encerramento parcial", "recuperação do IndexedDB"], overrides: ["origem local da fixture", "saveAs=false para evitar diálogo nativo"], passed: true }, null, 2));
+    const resumedEntries=await resumedReader.getEntries();assert.ok(!resumedEntries.some(e=>e.filename==='mensagens.xlsx'));
+    const pendingCsv=await resumedEntries.find(e=>e.filename==='mensagens.csv').getData(new zip.TextWriter());
+    assert.match(pendingCsv,/"incompleta","data_hora \| texto"/);
+    const pendingReport=JSON.parse(await resumedEntries.find(e=>e.filename==='.system/relatorio_coleta.json').getData(new zip.TextWriter()));
+    assert.equal(pendingReport.mensagens_incompletas,1);assert.ok(pendingReport.falhas.some(f=>f.etapa==='metadados'&&f.mensagem_id==='fixture-29'));await resumedReader.close();
+    await fs.writeFile("docs/firefox-fixture-result.json", JSON.stringify({ extensionVersion: manifest.version, browser: (await driver.getCapabilities()).get("browserVersion"), fixture: "grupo e canal sintéticos locais; API WPP simulada; não WhatsApp real", messages: state.job.count, media: state.job.mediaCount, failures: state.job.mediaFailures, partialChannelMessages: partial.job.count, checked: ["instalação temporária", "painel", "rolagem com sobreposição", "pausa", "troca de conversa", "retomada", "API de sessão simulada em MAIN", "download original via hook Firefox como fallback", "foto Abrir imagem", "álbum com dois arquivos idênticos e IDs distintos", "links no CSV", "total de interações no CSV", "associação MID no CSV/índice/arquivo", "diagnóstico antes e depois da coleta", "ZIP real", "XLSX opcional com filtros e tipos numéricos", "JSONs em .system", "links permanentes de canal pela API simulada", "texto e data ausentes no DOM recuperados pela API", "contêiner vazio não contado", "metadado indisponível não exige Continuar; 35 registros e 1 pendência explícita", "exportação padrão sem XLSX", "rolagem avança por mais de oito ciclos com IDs inalterados", "pseudônimos", "canal", "encerramento parcial", "recuperação do IndexedDB"], overrides: ["origem local da fixture", "saveAs=false para evitar diálogo nativo"], passed: true }, null, 2));
     console.log("PASS: Firefox real, grupo com 35 mensagens/6 mídias/1 falha; canal parcial, ZIP e pausa/retomada.");
   } finally { if (driver) await driver.quit(); server.close(); await fs.rm(root, { recursive: true, force: true }); }
 }

@@ -2,7 +2,7 @@ const C = globalThis.ScoopCore;
 export function publicMessage(m, job, names) {
   const record = job.options.pseudonymize ? C.pseudonymize(m, names) : { ...m };
   record.links = Array.from(new Set([...(record.links || []), ...C.extractLinks((record.texto || "") + "\n" + (record.legenda || ""))]));
-  return record;
+  return C.assessCapture(record);
 }
 export function csvStream(store, job) {
   const iterator = store.records("messages", job.key), names = new Map(), encoder = new TextEncoder();
@@ -31,12 +31,14 @@ export async function reportFiles(store, job) {
   for await (const row of store.records("media", job.key)) {
     if (row.complete) index.push({ midia_id: row.id || "", mensagem_id: row.messageId, arquivo: row.path, bytes: row.size, mime: row.mime, sha256: row.sha256, origem_captura: row.source || "desconhecida", drive_id: row.driveId || "", upload: row.uploadError || (row.driveId ? "enviado" : "local") });
   }
+  let incompleteCount = 0;
+  for await (const row of store.records("messages", job.key)) if (C.assessCapture(row.message).status_captura === "incompleta") incompleteCount++;
   const report = {
     ferramenta: "Whatsapp Scoop", versao: browser.runtime.getManifest().version, autor: "douglasferreira", site: "https://douglasferreira.me",
     conversa: job.conversation.title, tipo: job.conversation.type, inicio_coleta: job.startedAt, fim_coleta: job.finishedAt || null,
     estado: job.status, motivo_termino: job.reason || "coleta_em_andamento", escopo: "histórico acessível à sessão WhatsApp Web, sem garantia de integralidade",
     intervalo_solicitado: { inicio: job.options.start || null, fim: job.options.end || null }, periodo_observado: { inicio: job.oldest || null, fim: job.newest || null },
-    mensagens: job.count, midias_obtidas: job.mediaCount, midias_com_falha: job.mediaFailures, bytes: job.bytes,
+    mensagens: job.count, mensagens_incompletas: incompleteCount, qualidade_metadados: incompleteCount ? "com_pendencias" : "sem_pendencias_identificadas", midias_obtidas: job.mediaCount, midias_com_falha: job.mediaFailures, bytes: job.bytes,
     pseudonimizacao: job.options.pseudonymize ? "identificadores dos remetentes; texto e mídia não são anonimizados" : "não aplicada",
     datas_desconhecidas_excluidas_pelo_filtro: job.unknownDates || 0,
     identificadores_inferidos: !!job.fallbackIds,

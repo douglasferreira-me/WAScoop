@@ -1,7 +1,7 @@
 /* Shared pure functions; deliberately usable in Firefox and Node tests. */
 (function (root) {
   "use strict";
-  const columns = ["id", "conversa", "tipo_conversa", "data_hora", "data_original", "remetente", "numero", "texto", "legenda", "links", "tipo", "resposta_a", "encaminhada", "interacoes_total", "interacoes_precisao", "interacoes_observadas_em", "midias_ids", "midias", "status_midia", "link_mensagem"];
+  const columns = ["id", "conversa", "tipo_conversa", "data_hora", "data_original", "remetente", "numero", "texto", "legenda", "links", "tipo", "resposta_a", "encaminhada", "interacoes_total", "interacoes_precisao", "interacoes_observadas_em", "midias_ids", "midias", "status_midia", "link_mensagem", "status_captura", "campos_ausentes"];
   function safeName(value) {
     return String(value || "conversa").normalize("NFKC").replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_").replace(/[. ]+$/g, "").slice(0, 100) || "conversa";
   }
@@ -77,7 +77,7 @@
   function applyMessageMetadata(m, metadata, permalink) {
     const record = { ...m };
     if (metadata) {
-      record._nativeConfirmed = true;
+      record._nativeConfirmed = true; record._nativeType = metadata.tipo || "";
       if (!record.data_hora && metadata.data_hora) { record.data_hora = metadata.data_hora; record.data_original ||= metadata.data_original || metadata.data_hora; }
       if (metadata.tipo) record.tipo = metadata.tipo;
       if (record.tipo === "texto") record.texto ||= metadata.texto || "";
@@ -90,6 +90,22 @@
   function isNativeMessageId(id) { return /^[a-f0-9]{18,64}$/i.test(id || "") || /^(true|false)_[^_]+@[^_]+_/.test(id || ""); }
   function isEmptyMessage(m) {
     return !m._nativeConfirmed && !isNativeMessageId(m.id) && m.tipo === "texto" && !m.texto && !m.legenda && !m.data_hora && !m.remetente && !m.resposta_a && !m.link_mensagem && !(m.links || []).length;
+  }
+  function assessCapture(m) {
+    const campos_ausentes = [];
+    if (!m.data_hora) campos_ausentes.push("data_hora");
+    if (m.tipo === "texto" && !m.texto && !m.legenda) campos_ausentes.push("texto");
+    return { ...m, status_captura: campos_ausentes.length ? "incompleta" : "completa", campos_ausentes };
+  }
+  function mergeCapture(previous, fresh) {
+    const result = { ...previous };
+    for (const field of ["data_hora", "data_original", "texto", "legenda", "remetente", "numero", "resposta_a", "link_mensagem", "interacoes_total", "interacoes_precisao", "interacoes_observadas_em"]) {
+      if (fresh[field] !== "" && fresh[field] !== undefined && fresh[field] !== null) result[field] = fresh[field];
+    }
+    result.links = [...new Set([...(previous.links || []), ...(fresh.links || [])])];
+    if (fresh._nativeType || fresh.tipo && (fresh.tipo !== "texto" || previous.tipo === "texto")) result.tipo = fresh.tipo;
+    if (result.tipo !== "texto" && fresh.texto && !fresh.legenda) { result.legenda = fresh.texto; result.texto = ""; }
+    return assessCapture(result);
   }
   class ScrollTracker {
     constructor() { this.reset(); }
@@ -119,7 +135,7 @@
   function mediaExtension(mime) {
     return ({ "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif", "video/mp4": "mp4", "audio/ogg": "ogg", "audio/mpeg": "mp3", "audio/mp4": "m4a", "application/pdf": "pdf" })[mime?.split(";")[0]] || "bin";
   }
-  const api = { ScrollTracker, isNativeMessageId, applyMessageMetadata, isEmptyMessage, columns, extractLinks, safeName, hashText, parseDate, inRange, fingerprint, Timeline, csvCell, csvLine, csvHeader, pseudonymize, mediaExtension };
+  const api = { assessCapture, mergeCapture, ScrollTracker, isNativeMessageId, applyMessageMetadata, isEmptyMessage, columns, extractLinks, safeName, hashText, parseDate, inRange, fingerprint, Timeline, csvCell, csvLine, csvHeader, pseudonymize, mediaExtension };
   root.ScoopCore = api;
   if (typeof module !== "undefined") module.exports = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);
