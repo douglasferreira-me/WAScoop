@@ -1,0 +1,26 @@
+{
+  "manifest_version": 2,
+  "name": "Whatsapp Scoop",
+  "version": "0.1.0",
+  "description": "Exporte o histórico acessível de grupos e canais para pesquisa: CSV, mídias e ZIP ou Google Drive.",
+  "author": "douglasferreira",
+  "homepage_url": "https://douglasferreira.me",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "whatsapp-scoop@douglasferreira.me",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": {
+        "required": ["none"],
+        "optional": ["personalCommunications", "personallyIdentifyingInfo", "websiteContent", "authenticationInfo"]
+      }
+    }
+  },
+  "permissions": ["storage", "downloads", "unlimitedStorage", "identity", "https://web.whatsapp.com/*"],
+  "optional_permissions": ["https://accounts.google.com/*", "https://www.googleapis.com/*", "https://oauth2.googleapis.com/*"],
+  "background": { "page": "background.html", "persistent": true },
+  "browser_action": { "default_title": "Abrir Whatsapp Scoop", "default_icon": "icons/scoop.svg" },
+  "sidebar_action": { "default_title": "Whatsapp Scoop", "default_panel": "panel.html", "default_icon": "icons/scoop.svg" },
+  "icons": { "48": "icons/scoop.svg", "96": "icons/scoop.svg" },
+  "content_scripts": [{ "matches": ["https://web.whatsapp.com/*"], "js": ["lib/core.js", "content/adapters.js", "content/collector.js"], "run_at": "document_idle" }],
+  "content_security_policy": "script-src 'self'; object-src 'none'"
+}

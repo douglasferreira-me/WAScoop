@@ -1,0 +1,2 @@
+# Keep vendored upstream code byte-for-byte, including its license comments.
+extension/vendor/* -whitespace

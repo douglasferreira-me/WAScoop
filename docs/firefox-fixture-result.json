@@ -1,0 +1,27 @@
+{
+  "browser": "158.0",
+  "fixture": "grupo e canal sintéticos locais; não WhatsApp real",
+  "messages": 35,
+  "media": 5,
+  "failures": 1,
+  "partialChannelMessages": 10,
+  "checked": [
+    "instalação temporária",
+    "painel",
+    "rolagem com sobreposição",
+    "pausa",
+    "troca de conversa",
+    "retomada",
+    "download original via hook Firefox",
+    "ZIP real",
+    "pseudônimos",
+    "canal",
+    "encerramento parcial",
+    "recuperação do IndexedDB"
+  ],
+  "overrides": [
+    "origem local da fixture",
+    "saveAs=false para evitar diálogo nativo"
+  ],
+  "passed": true
+}

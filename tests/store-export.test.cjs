@@ -1,0 +1,30 @@
+const { test } = require("node:test");
+const assert = require("node:assert/strict");
+require("fake-indexeddb/auto");
+require("../extension/lib/core.js");
+global.zip = require("@zip.js/zip.js");
+global.browser = { runtime: { getManifest: () => ({ version: "0.1.0" }) } };
+const { importFile, message } = require("./helpers.cjs");
+
+test("persistência, paginação, ZIP fiel e remoção isolada de uma coleta", async () => {
+  const { Store } = await importFile("lib/store.js"), { zipBlob, csvBlob } = await importFile("lib/export.js");
+  const s = new Store(); await s.open();
+  const job = { key: "j1", conversation: { title: "Teste", type: "grupo" }, startedAt: "2026-10-13T12:00:00Z", finishedAt: "2026-10-13T12:01:00Z", status: "interrupted", reason: "interrompida_pelo_usuario", count: 125, mediaCount: 1, mediaFailures: 1, bytes: 4, options: { pseudonymize: true }, failures: [{ mensagem_id: "m124", erro: "expirada" }] };
+  await s.put("jobs", job);
+  for (let i = 0; i < 125; i++) await s.put("messages", { key: `j1:${String(i).padStart(4, "0")}`, job: "j1", message: { ...message(`m${i}`, `Texto ${i}, "oi"\n🧪`), midias: i === 0 ? ["midias/teste.bin"] : [] } });
+  await s.put("messages", { key: "j2:a", job: "j2", message: message("a", "outra") });
+  await s.put("media", { key: "j1:media", job: "j1", messageId: "m0", complete: true, size: 4, path: "midias/teste.bin", mime: "application/octet-stream", sha256: "teste", blob: new Blob([new Uint8Array([0, 1, 2, 255])]) });
+  let count = 0; for await (const row of s.records("messages", "j1")) { assert.equal(row.job, "j1"); count++; } assert.equal(count, 125);
+  const csv = await (await csvBlob(s, job)).text();
+  assert.match(csv, /participante_0001/); assert.doesNotMatch(csv, /"Ana"/); assert.match(csv, /midias\/teste.bin/);
+  const blob = await zipBlob(s, job, () => {});
+  const reader = new zip.ZipReader(new zip.BlobReader(blob));
+  const entries = await reader.getEntries();
+  assert.deepEqual(entries.map(e => e.filename), ["mensagens.csv", "midias/teste.bin", "indice_midias.json", "relatorio_coleta.json"]);
+  const binary = await entries[1].getData(new zip.Uint8ArrayWriter()); assert.deepEqual([...binary], [0, 1, 2, 255]);
+  const report = JSON.parse(await entries[3].getData(new zip.TextWriter()));
+  assert.equal(report.motivo_termino, "interrompida_pelo_usuario"); assert.equal(report.falhas.length, 1); assert.equal(report.arquivos[0].mensagem_id, "m0");
+  await reader.close();
+  const second = new Store(); await second.open(); assert.equal((await second.get("jobs", "j1")).count, 125);
+  await s.deleteJob("j1"); assert.equal(await s.get("jobs", "j1"), undefined); assert.ok(await s.get("messages", "j2:a"));
+});

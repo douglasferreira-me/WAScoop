@@ -1,0 +1,244 @@
+import { Store } from "./lib/store.js";
+import { Drive, AuthRequired } from "./lib/drive.js";
+import { csvBlob, reportFiles, zipBlob } from "./lib/export.js";
+const googlePermissions = { origins: ["https://accounts.google.com/*", "https://www.googleapis.com/*", "https://oauth2.googleapis.com/*"], data_collection: ["personalCommunications", "personallyIdentifyingInfo", "websiteContent", "authenticationInfo"] };
+async function assertGooglePermissions() {
+  if (!await browser.permissions.contains(googlePermissions)) throw new AuthRequired("Autorize novamente o envio ao Google Drive pelo botão Conectar.");
+}
+const C = globalThis.ScoopCore, store = new Store(), drive = new Drive({ authorize: assertGooglePermissions });
+const ready = store.open();
+let job = null, inspectCache = null, exportBusy = false;
+const pendingMedia = new Map(), downloadUrls = new Map();
+const config = fetch(browser.runtime.getURL("config.json")).then(r => r.json());
+const now = () => new Date().toISOString();
+const serial = new Map();
+function enqueue(id, action) {
+  const next = (serial.get(id) || Promise.resolve()).catch(() => {}).then(action);
+  serial.set(id, next); next.finally(() => { if (serial.get(id) === next) serial.delete(id); }).catch(() => {}); return next;
+}
+async function state() {
+  await ready;
+  const settings = await browser.storage.local.get("googleClientId");
+  const cfg = await config;
+  return { job: job ? { ...job, options: { ...job.options }, failures: undefined } : null, conversation: inspectCache, driveConnected: drive.connected(), driveConfigured: !!(settings.googleClientId || cfg.googleClientId), redirect: browser.identity?.getRedirectURL?.() || "", exportBusy };
+}
+async function publish() { try { await browser.runtime.sendMessage({ target: "panel", type: "state", state: await state() }); } catch { /* Panel can be closed. */ } }
+async function save() { if (job) { await store.put("jobs", job); await publish(); } }
+async function collector(type, extra = {}) {
+  if (!job) throw new Error("Nenhuma coleta ativa.");
+  return browser.tabs.sendMessage(job.tabId, { target: "collector", type, ...extra });
+}
+async function pause(reason) {
+  if (!job) return;
+  job.status = "paused"; job.notice = reason;
+  try { await collector("pause"); } catch { /* Lost tab is already represented by pause. */ }
+  await save();
+}
+async function inspect() {
+  const tabs = await browser.tabs.query({ url: "https://web.whatsapp.com/*" });
+  const candidates = tabs.sort((a, b) => Number(b.active) - Number(a.active));
+  inspectCache = null;
+  for (const tab of candidates) {
+    try {
+      const info = await browser.tabs.sendMessage(tab.id, { target: "collector", type: "inspect" });
+      if (info) { inspectCache = { ...info, tabId: tab.id }; break; }
+    } catch { /* Reload after installing the extension. */ }
+  }
+  await publish(); return inspectCache;
+}
+function assertOptions(options) {
+  for (const key of ["start", "end"]) if (options[key] && !/^\d{4}-\d{2}-\d{2}$/.test(options[key])) throw new Error("Intervalo de datas inválido.");
+  if (options.start && options.end && options.start > options.end) throw new Error("A data inicial deve ser anterior à final.");
+  if (!["zip", "drive"].includes(options.destination)) throw new Error("Destino inválido.");
+}
+async function start(options) {
+  if (exportBusy || (job && ["running", "paused", "stopping"].includes(job.status))) throw new Error("Encerre a coleta atual antes de iniciar outra.");
+  assertOptions(options);
+  const conversation = await inspect(); if (!conversation) throw new Error("Abra um grupo ou canal no WhatsApp Web e recarregue a página após instalar a extensão.");
+  if (options.destination === "drive" && !drive.connected()) throw new Error("Conecte ao Google Drive antes de iniciar.");
+  const key = crypto.randomUUID();
+  pendingMedia.clear();
+  job = { key, tabId: conversation.tabId, conversation, options, startedAt: now(), status: "running", phase: "Coletando histórico", count: 0, mediaCount: 0, mediaFailures: 0, bytes: 0, failures: [], notes: [], oldest: null, newest: null };
+  if (options.destination === "drive") {
+    try {
+      const folder = await drive.folder(`Whatsapp Scoop - ${C.safeName(conversation.title)} - ${job.startedAt.slice(0, 10)}`);
+      job.driveFolder = folder.id; job.driveLink = folder.webViewLink || `https://drive.google.com/drive/folders/${folder.id}`;
+      if (options.media) job.driveMediaFolder = (await drive.folder("midias", folder.id)).id;
+    } catch (e) { job.status = "interrupted"; job.finishedAt = now(); job.reason = "falha_preparacao_drive"; job.notice = e.message; await save(); throw e; }
+  }
+  await save();
+  try { await collector("start", { job: key, options, startedAt: +new Date(job.startedAt) }); }
+  catch (e) { await pause(e.message); throw e; }
+}
+async function uploadMedia(record) {
+  if (record.driveId) return;
+  try {
+    const response = await drive.upload(record.path.split("/").pop(), record.blob, job.driveMediaFolder, () => {}, record.uploadSession, async url => { record.uploadSession = url; await store.put("media", record); });
+    record.driveId = response.id; record.uploadError = null; record.uploadSession = null; await store.put("media", record);
+  } catch (e) {
+    record.uploadError = e.message; await store.put("media", record);
+    if (["running", "paused", "stopping"].includes(job.status)) await pause(e.message);
+    else { job.notice = e.message; await save(); }
+    throw e;
+  }
+}
+async function resume() {
+  if (!job || job.status !== "paused") throw new Error("Nenhuma coleta pausada.");
+  if (job.options.destination === "drive") {
+    if (!drive.connected()) throw new AuthRequired("Reconecte ao Google Drive.");
+    for await (const record of store.records("media", job.key)) if (record.complete && !record.driveId) await uploadMedia(record);
+  }
+  await collector("resume"); job.status = "running"; job.notice = ""; await save();
+}
+async function processBatch(message) {
+  if (!job || message.job !== job.key) throw new Error("Coleta inválida.");
+  for (const m of message.messages) {
+    const sort = m.data_hora || "9999-sem-data";
+    const key = `${job.key}:${sort}:${m.id}`;
+    if (await store.get("messages", key)) continue;
+    await store.put("messages", { key, job: job.key, message: m });
+    job.count++;
+    if (m.data_hora) { if (!job.oldest || m.data_hora < job.oldest) job.oldest = m.data_hora; if (!job.newest || m.data_hora > job.newest) job.newest = m.data_hora; }
+    if (m._mediaError) { job.mediaFailures++; job.failures.push({ mensagem_id: m.id, etapa: "midia", erro: m._mediaError }); }
+  }
+  job.unknownDates = message.unknownDates; job.fallbackIds ||= message.fallbackIds;
+  await save(); return { ok: true, paused: job.status === "paused" };
+}
+async function mediaStart(m) {
+  if (pendingMedia.size >= 1) throw new Error("Transferência de mídia já em andamento.");
+  if (!Number.isSafeInteger(m.size) || m.size < 1) throw new Error("Tamanho de mídia inválido.");
+  pendingMedia.set(m.mediaId, { ...m, parts: [], received: 0 }); return { ok: true };
+}
+async function mediaChunk(m) {
+  const p = pendingMedia.get(m.mediaId); if (!p || m.offset !== p.received) throw new Error("Transferência de mídia fora de ordem.");
+  const raw = atob(m.data), bytes = Uint8Array.from(raw, c => c.charCodeAt(0));
+  if (bytes.length > 256 * 1024 || p.received + bytes.length > p.size) throw new Error("Bloco de mídia inválido.");
+  p.parts.push(bytes); p.received += bytes.length; return { ok: true };
+}
+async function mediaEnd(m) {
+  const p = pendingMedia.get(m.mediaId); pendingMedia.delete(m.mediaId);
+  if (!p || p.received !== p.size) throw new Error("Transferência de mídia incompleta.");
+  const blob = new Blob(p.parts, { type: p.mime }); p.parts = [];
+  const digest = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
+  const sha256 = Array.from(new Uint8Array(digest), x => x.toString(16).padStart(2, "0")).join("");
+  const suffix = p.originalName?.match(/\.([a-zA-Z0-9]{1,8})$/)?.[1]?.toLowerCase() || C.mediaExtension(p.mime);
+  const path = `midias/${C.safeName(p.messageId)}-${sha256.slice(0, 12)}.${suffix}`;
+  const record = { key: `${job.key}:${p.mediaId}`, job: job.key, messageId: p.messageId, blob, path, mime: p.mime, size: p.size, sha256, source: p.captureSource, complete: true };
+  const existing = await store.get("media", record.key);
+  if (!existing) { await store.put("media", record); job.mediaCount++; job.bytes += p.size; }
+  if (job.options.destination === "drive") {
+    job.phase = "Enviando mídia ao Drive"; await publish();
+    try { await uploadMedia(existing || record); } catch { /* Local blob saved; collector will pause after its batch. */ }
+    job.phase = "Coletando histórico";
+  }
+  await save(); return { ok: true, path, paused: job.status === "paused" };
+}
+async function exportLocal() {
+  if (!job || exportBusy || ["running", "stopping"].includes(job.status)) throw new Error("Pause ou encerre a coleta antes de exportar.");
+  exportBusy = true; job.phase = "Preparando ZIP"; await publish();
+  try {
+    const blob = await zipBlob(store, job, n => { job.phase = `Preparando ZIP: ${n} mídias`; publish(); });
+    const url = URL.createObjectURL(blob);
+    let id;
+    try { id = await browser.downloads.download({ url, filename: `Whatsapp-Scoop-${C.safeName(job.conversation.title)}-${job.startedAt.slice(0, 10)}.zip`, saveAs: true }); }
+    catch (e) { URL.revokeObjectURL(url); throw e; }
+    downloadUrls.set(id, url); job.notice = "ZIP enviado ao gerenciador de downloads do Firefox.";
+  } finally { exportBusy = false; job.phase = "Coleta preservada"; await save(); }
+}
+async function finishDrive() {
+  if (!job || exportBusy || ["running", "stopping"].includes(job.status)) throw new Error("Encerre a coleta antes de finalizar o Drive.");
+  if (!job.driveFolder) throw new Error("Esta coleta não tem uma pasta no Drive.");
+  exportBusy = true; job.phase = "Finalizando pasta no Drive"; await publish();
+  try {
+    for await (const m of store.records("media", job.key)) if (m.complete && !m.driveId) await uploadMedia(m);
+    const files = await reportFiles(store, job);
+    for (const [name, blob] of [["mensagens.csv", await csvBlob(store, job)], ["indice_midias.json", files.index], ["relatorio_coleta.json", files.report]]) {
+      job.finalUploads ||= {};
+      const old = job.finalUploads[name];
+      if (old?.id) continue;
+      const result = await drive.upload(name, blob, job.driveFolder, () => {}, old?.session, async url => { job.finalUploads[name] = { session: url }; await save(); });
+      job.finalUploads[name] = { id: result.id }; await save();
+    }
+    job.notice = "CSV, mídias e relatório enviados ao Drive.";
+  } finally { exportBusy = false; job.phase = "Coleta preservada"; await save(); }
+}
+async function finalize(reason) {
+  job.finishedAt = now(); job.status = reason === "intervalo" || reason === "limite_observado" ? "finished" : "interrupted"; job.reason = reason;
+  job.phase = "Coleta encerrada"; job.notice = reason === "limite_observado" ? "Limite observado da rolagem. Não há garantia de histórico integral." : "Coleta encerrada; consulte o relatório.";
+  await save();
+  if (job.options.destination === "zip") await exportLocal();
+  else { try { await finishDrive(); } catch (e) { job.notice = e.message; await save(); } }
+}
+browser.browserAction.onClicked.addListener(() => browser.sidebarAction.open());
+browser.permissions.onRemoved.addListener(removed => {
+  if (removed.origins?.some(origin => googlePermissions.origins.includes(origin)) || removed.data_collection?.length) {
+    drive.disconnect();
+    if (job?.options.destination === "drive" && job.status === "running") pause("Permissão de envio ao Google Drive removida.");
+    else publish();
+  }
+});
+browser.downloads.onChanged.addListener(delta => {
+  if (delta.state && ["complete", "interrupted"].includes(delta.state.current)) {
+    const url = downloadUrls.get(delta.id); if (url) URL.revokeObjectURL(url); downloadUrls.delete(delta.id);
+    if (delta.state.current === "interrupted" && job) { job.notice = "Download interrompido. Use Exportar ZIP para tentar novamente."; save(); }
+  }
+});
+browser.tabs.onRemoved.addListener(id => { if (job?.tabId === id && ["running", "paused"].includes(job.status)) { pendingMedia.clear(); pause("A aba foi fechada. Exporte o material preservado e inicie outra coleta."); } });
+browser.tabs.onUpdated.addListener((id, change) => { if (job?.tabId === id && change.status === "loading" && ["running", "paused"].includes(job.status)) { pendingMedia.clear(); pause("A página foi recarregada. Exporte a coleta parcial antes de iniciar outra."); } });
+browser.runtime.onMessage.addListener(async (m, sender) => {
+  if (m.target === "panel") return;
+  await ready;
+  try {
+    if (m.source === "collector") {
+      if (!job || sender.tab?.id !== job.tabId || m.job !== job.key) throw new Error("Origem de coleta inválida.");
+      if (m.type === "batch") return await enqueue(job.key, () => processBatch(m));
+      if (m.type === "media-start") return await mediaStart(m);
+      if (m.type === "media-chunk") return await mediaChunk(m);
+      if (m.type === "media-end") return await enqueue(job.key, () => mediaEnd(m));
+      if (m.type === "media-abort") { pendingMedia.delete(m.mediaId); return { ok: true }; }
+      if (m.type === "paused") { await pause(m.reason); return { ok: true }; }
+      if (m.type === "finished") { await enqueue(job.key, () => finalize(m.reason)); return { ok: true }; }
+      if (m.type === "collector-stopped") {
+        if (job.status === "stopping") await enqueue(job.key, () => finalize("interrompida_pelo_usuario"));
+        return { ok: true };
+      }
+    }
+    if (!sender.url?.startsWith(browser.runtime.getURL(""))) throw new Error("Comando fora da extensão.");
+    if (m.type === "state") return { ok: true, state: await state() };
+    if (m.type === "inspect") return { ok: true, conversation: await inspect() };
+    if (m.type === "start") await start(m.options);
+    else if (m.type === "pause") await pause("Pausada pelo usuário.");
+    else if (m.type === "resume") await resume();
+    else if (m.type === "stop") {
+      if (!job || !["running", "paused"].includes(job.status)) throw new Error("Nenhuma coleta para encerrar.");
+      job.status = "stopping"; job.phase = "Encerrando transferência em andamento"; await save();
+      try { await collector("stop"); }
+      catch { await enqueue(job.key, () => finalize("sessao_perdida")); }
+    }
+    else if (m.type === "export") await exportLocal();
+    else if (m.type === "finish-drive") await finishDrive();
+    else if (m.type === "connect") {
+      await assertGooglePermissions();
+      const settings = await browser.storage.local.get("googleClientId"), cfg = await config;
+      await drive.connect(settings.googleClientId || cfg.googleClientId); await publish();
+    }
+    else if (m.type === "disconnect") { drive.disconnect(); if (job?.options.destination === "drive" && job.status === "running") await pause("Google Drive desconectado."); await publish(); }
+    else if (m.type === "configure-google") {
+      if (m.clientId && !/^[a-zA-Z0-9_-]+\.apps\.googleusercontent\.com$/.test(m.clientId)) throw new Error("Client ID inválido.");
+      await browser.storage.local.set({ googleClientId: m.clientId || "" }); drive.disconnect(); await publish();
+    }
+    else if (m.type === "clear") {
+      if (exportBusy || job && ["running", "stopping", "paused"].includes(job.status)) throw new Error("Encerre a coleta antes de apagar os dados temporários.");
+      if (job) await store.deleteJob(job.key); job = null; await publish();
+    }
+    else if (m.type === "restore") {
+      if (job && ["running", "paused", "stopping"].includes(job.status)) throw new Error("Encerre a coleta atual primeiro.");
+      const jobs = await store.all("jobs"); job = jobs.sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0] || null; await publish();
+    }
+    return { ok: true };
+  } catch (e) { return { ok: false, error: e.message }; }
+});
+await ready;
+for (const old of await store.all("jobs")) {
+  if (["running", "paused", "stopping"].includes(old.status)) { old.status = "interrupted"; old.reason = "navegador_reiniciado"; old.finishedAt = now(); old.notice = "Sessão interrompida; é possível exportar os dados preservados."; await store.put("jobs", old); }
+}
