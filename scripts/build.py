@@ -29,6 +29,18 @@ def main():
     vendor.mkdir(exist_ok=True)
     shutil.copyfile(dependency / "dist/zip-native.js", vendor / "zip.js")
     shutil.copyfile(dependency / "LICENSE", vendor / "LICENSE.zipjs")
+    api_dependency = ROOT / "node_modules/@wppconnect/wa-js"
+    if not api_dependency.exists():
+        raise SystemExit("Execute npm ci para obter a biblioteca WA-JS.")
+    # The upstream universal bundle includes an unused Node-only stream path.
+    # Remove its eval(require) rather than allowing unsafe-eval in the add-on.
+    api_source = (api_dependency / "dist/wppconnect-wa.js").read_text()
+    node_stream = 'eval("require")("stream")'
+    if api_source.count(node_stream) != 1:
+        raise SystemExit("Mudou o bundle WA-JS: revisar a adaptação da variante navegador.")
+    api_source = api_source.replace(node_stream, '(()=>{throw new Error("Node streams unavailable in browser")})()')
+    (vendor / "wppconnect-wa.js").write_text(api_source)
+    shutil.copyfile(api_dependency / "LICENSE", vendor / "LICENSE.wajs")
     version = json.loads((EXT / "manifest.json").read_text())["version"]
     DIST.mkdir(exist_ok=True)
     folder = DIST / "whatsapp-scoop-temporario"

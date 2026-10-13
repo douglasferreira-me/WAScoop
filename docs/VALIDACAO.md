@@ -40,3 +40,9 @@ As conversas deste teste são sintéticas e locais. O formato acessível de cont
 ## Versão 0.1.4 — logo do pesquisador
 
 Alteração visual: balão com carinha de óculos e sorriso. PNG de 512 pixels inspecionado, ícones gerados do mesmo SVG e pacotes reconstruídos. Lint desktop sem erros ou avisos. Código de coleta permanece igual ao da versão 0.1.3; os testes funcionais documentados acima correspondem a essa implementação.
+
+## Versão 0.2.0 — API da sessão para mídias
+
+29 testes automáticos aprovados e lint desktop sem avisos ou erros. Teste Waterfox 153.4.0 em perfil descartável aprovado: 35 mensagens, 6 arquivos, 1 falha deliberada, ZIP, vínculos MID, links, reações, pausa/retomada e canal parcial. Nesta execução a API WPP foi simulada na página; funções reais de `browser.scripting.executeScript` executaram o protocolo de leitura/transferência em MAIN. Isso verifica a integração da extensão e a transferência de bytes, **não** a resolução dos módulos do WhatsApp real pela biblioteca WA-JS.
+
+Na sessão real, o usuário relatou que precisou primeiro carregar o vídeo manualmente para abri-lo. Inspeção confirmou o controle interno `media-url-provider`, ausência inicial de `video` no histórico não carregado, e vídeo aberto com origem `blob` e botões Baixar/Fechar. Os logs da versão 0.1.3 confirmaram 4 mídias com erro e nenhum arquivo recuperado. A versão 0.2.0 adiciona WA-JS 4.6.1, download pela sessão autenticada e fallback DOM com sequência de eventos no elemento interno. A obtenção automática de mídia via WA-JS nesse canal real ainda precisa de confirmação; não é apresentada como validada.

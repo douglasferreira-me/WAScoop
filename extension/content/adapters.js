@@ -55,6 +55,31 @@
     const playable = Array.from(row.querySelectorAll("audio,video")).filter(el => !el.closest(excludedMedia));
     return playable.length ? playable : found.filter(el => !found.some(other => other !== el && other.contains(el)));
   }
+  function mediaActivationTarget(target) {
+    const image = target?.querySelector('[data-testid="media-url-provider"] img, img:not(.emoji)');
+    return image || target;
+  }
+  function activateMedia(target) {
+    if (!target || target.closest(excludedMedia)) throw new Error("Controle de mídia inseguro: link, prévia ou resposta citada.");
+    target.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+    let element = mediaActivationTarget(target);
+    if (!element || element.closest(excludedMedia)) throw new Error("Controle de mídia inseguro.");
+    const rect = element.getBoundingClientRect();
+    const hit = document.elementFromPoint?.(rect.x + rect.width / 2, rect.y + rect.height / 2);
+    if (hit && (target.contains(hit) || target.closest('[data-testid="media-url-provider"]')?.contains(hit)) && !hit.closest(excludedMedia) && !/picture-in-picture/i.test(hit.getAttribute("aria-label") || "")) element = hit;
+    const options = { bubbles: true, composed: true, cancelable: true, view: window, clientX: rect.x + rect.width / 2, clientY: rect.y + rect.height / 2, button: 0 };
+    for (const type of ["pointerover", "mouseover", "pointerdown", "mousedown", "pointerup", "mouseup", "click"]) {
+      const pressed = type.endsWith("down");
+      const event = type.startsWith("pointer") && typeof PointerEvent === "function" ? new PointerEvent(type, { ...options, pointerId: 1, pointerType: "mouse", isPrimary: true, buttons: pressed ? 1 : 0 }) : new MouseEvent(type, { ...options, buttons: pressed ? 1 : 0 });
+      element.dispatchEvent(event);
+    }
+  }
+  function mediaStructure(row, target) {
+    const shape = el => ({ tag: el?.tagName || "", role: ["button", "img", "dialog", "presentation", "none"].includes(el?.getAttribute("role")) ? el.getAttribute("role") : "", mediaProvider: el?.getAttribute("data-testid") === "media-url-provider", images: el?.querySelectorAll("img:not(.emoji)").length || 0, playable: el?.querySelectorAll("audio,video").length || 0, blob: !!el?.querySelector('[src^="blob:"]'), connected: !!el?.isConnected });
+    const ancestors = [];
+    for (let el = target; el && ancestors.length < 5 && row.contains(el); el = el.parentElement) ancestors.push(shape(el));
+    return { target: shape(target), ancestors, dialogs: document.querySelectorAll('[role="dialog"],[data-testid="media-viewer"],[data-animate-modal-body="true"]').length, downloadControls: Array.from(document.querySelectorAll('[data-icon^="download"]')).length };
+  }
   function downloadControl(root) {
     if (!root) return null;
     return Array.from(root.querySelectorAll('[data-icon^="download"],[data-testid="download"],button[aria-label],[role="button"][aria-label],[title],a[download]')).find(el => {
@@ -131,5 +156,5 @@
       return m;
     }
   }
-  globalThis.ScoopAdapters = { conversation, rows, scrollBox, interactions, mediaTargets, downloadControl, mediaViewer, GroupAdapter, ChannelAdapter };
+  globalThis.ScoopAdapters = { conversation, rows, scrollBox, interactions, mediaTargets, activateMedia, mediaStructure, downloadControl, mediaViewer, GroupAdapter, ChannelAdapter };
 })();

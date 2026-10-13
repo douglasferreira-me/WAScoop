@@ -12,6 +12,7 @@ Nomes e números são preservados quando expostos na interface. Pseudonimizaçã
 | `storage` | Guardar configuração pública e preferências do aplicativo. |
 | `unlimitedStorage` | Permitir corpus e mídias maiores no armazenamento da extensão; não garante espaço infinito. |
 | `downloads` | Salvar o ZIP e liberar seu endereço temporário quando o download terminar ou falhar. |
+| `scripting` | Executar a biblioteca WA-JS localmente no contexto da página WhatsApp autorizada, para baixar mídias pela sessão já conectada. Nenhum servidor intermediário. |
 | `identity` | Abrir o login Google e receber o redirecionamento autorizado. O Firefox exige essa permissão no manifesto principal, mas a extensão só inicia login após clicar em Conectar. |
 | Google APIs — opcionais | Validar a autorização e criar/enviar arquivos no Drive, quando o usuário escolhe esse destino. |
 
@@ -24,3 +25,5 @@ O manifesto declara nenhum envio obrigatório (`required: ["none"]`) e categoria
 O código de captura de mídias observa brevemente a criação de um Blob e o clique de download do visualizador Firefox. Ele é restaurado ao encerrar a tentativa. O corpo das mensagens e tokens não são expostos ao contexto da página por esse código.
 
 O diagnóstico guarda localmente até 500 eventos técnicos com contagens e erros sanitizados. O download é voluntário e não há telemetria ou compartilhamento automático.
+
+WA-JS 4.6.1 é incluído no pacote (Apache-2.0). O contexto MAIN é compartilhado com o próprio WhatsApp; nele circulam apenas a identificação da conversa/mensagem necessária e bytes de mídias daquela sessão, nunca tokens Google. A extensão não chama funções de envio de mensagens, inscrição em canais ou alteração de contatos. A API valida a conversa ativa antes de cada obtenção de mídia.

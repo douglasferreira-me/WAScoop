@@ -83,3 +83,11 @@ test('contagem abreviada é aproximada; contagem ausente permanece vazia', () =>
   const approximate=A.interactions(w.document.querySelector('[data-id="r"]'));assert.equal(approximate.total,3400);assert.equal(approximate.precision,'aproximada');
   const missing=A.interactions(w.document.querySelector('[data-id="empty"]'));assert.equal(missing.total,'');assert.equal(missing.precision,'indisponivel');
 });
+test('mídia real: ativação chega ao provedor interno com sequência de mouse', () => {
+  const w=page('<div data-id="photo"><div role="button" aria-label="Abrir imagem"><div data-testid="media-url-provider"><div><img src="blob:https://web.whatsapp.com/file"></div></div></div></div>');
+  const target=w.document.querySelector('[aria-label="Abrir imagem"]');let down=false,opened=0;
+  const image=target.querySelector('img');image.addEventListener('mousedown',()=>{down=true});image.addEventListener('mouseup',()=>{if(down)opened++});
+  target.click();assert.equal(opened,0);
+  w.ScoopAdapters.activateMedia(target);assert.equal(opened,1);
+  const diagnostics=JSON.stringify(w.ScoopAdapters.mediaStructure(w.document.querySelector('[data-id]'),target));assert.match(diagnostics,/mediaProvider/);assert.ok(!diagnostics.includes('web.whatsapp.com'));
+});

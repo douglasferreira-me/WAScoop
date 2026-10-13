@@ -59,7 +59,7 @@
       let button = A.downloadControl(target || row);
       if (!button) {
         if (!target) throw new Error("Controle de mídia original não encontrado.");
-        clickable(target).click(); viewerOpened = true;
+        A.activateMedia(target); viewerOpened = true;
         for (let n = 0; n < 20; n++) {
           await delay(150);
           const loaded = target.matches("audio,video") ? target : target.querySelector("audio,video");
@@ -70,7 +70,7 @@
           if (button) break;
         }
       }
-      if (!button) throw new Error(`WhatsApp não disponibilizou o botão de baixar original (tipo=${type}; controles=${targets.length}; visualizador=${!!openedViewer}).`);
+      if (!button) throw new Error(`WhatsApp não disponibilizou o botão de baixar original (tipo=${type}; controles=${targets.length}; visualizador=${!!openedViewer}). Estrutura: ${JSON.stringify(A.mediaStructure(row, target))}`);
       armed = true; clickable(button).click();
       for (let n = 0; n < 60 && !captured; n++) await delay(150);
       if (!captured) throw new Error("Download original não capturado; nenhuma miniatura foi usada.");
@@ -137,6 +137,14 @@
             for (let attachment = 0; attachment < attachmentCount; attachment++) {
               if (s.stopped) break;
               try {
+                // Prefer the authenticated session API. DOM capture remains a
+                // compatibility fallback; it is never a thumbnail substitute.
+                const apiResult = await send({ type: "api-media", job: s.job, messageId: m.id, attachment });
+                if (apiResult?.ok) {
+                  media.push(apiResult.path); mediaIds.push(apiResult.id); m.status_midia = m._mediaError ? "parcial" : "obtida";
+                  if (apiResult.paused) s.paused = true;
+                  continue;
+                }
                 const original = await downloadOriginal(rows[i], m.tipo, attachment);
                 if (!original.blob.size) throw new Error("Arquivo vazio.");
                 // Chunk native messaging-sized transfers; no large base64 batch.

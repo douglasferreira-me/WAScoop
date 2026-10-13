@@ -14,7 +14,7 @@ Você abre a conversa no WhatsApp Web, inicia a coleta e recebe uma planilha CSV
 
 Você **não precisa instalar Python nem aprender programação** para usar o pacote pronto. Use Firefox para computador, versão **140 ou posterior**.
 
-1. Baixe [`whatsapp-scoop-0.1.4-temporario.zip`](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.1.4-beta/whatsapp-scoop-0.1.4-temporario.zip) na [versão beta](https://github.com/douglasferreira-me/WAScoop/releases/tag/v0.1.4-beta). Se você está na pasta do projeto, ele está dentro de `dist/`.
+1. Baixe [`whatsapp-scoop-0.2.0-temporario.zip`](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.2.0-beta/whatsapp-scoop-0.2.0-temporario.zip) na [versão beta](https://github.com/douglasferreira-me/WAScoop/releases/tag/v0.2.0-beta). Se você está na pasta do projeto, ele está dentro de `dist/`.
 2. Extraia o ZIP em uma pasta. Não tente instalá-lo como uma extensão permanente.
 3. No Firefox para computador, digite **`about:debugging`** na barra de endereço.
 4. Clique em **Este Firefox** e depois em **Carregar extensão temporária**.
@@ -100,7 +100,7 @@ Exemplo de referência: **douglasferreira. Whatsapp Scoop, versão 0.1.3. Dispon
 
 ## Para desenvolver ou fazer um fork
 
-O código usa JavaScript/HTML/CSS porque a extensão precisa operar dentro do Firefox. Python é usado no empacotamento, sem precisar ser instalado pelo pesquisador. Não há Baileys, servidor nem acesso a bancos privados internos do WhatsApp.
+O código usa JavaScript/HTML/CSS porque a extensão precisa operar dentro do Firefox. Python é usado no empacotamento, sem precisar ser instalado pelo pesquisador. Não há Baileys nem servidor. A biblioteca WA-JS é empacotada localmente e usa os módulos da sessão WhatsApp Web já conectada para obter mídias. Essa integração é não oficial e pode precisar de atualização quando o WhatsApp mudar.
 
 Requisitos do mantenedor: Node.js 22 ou posterior, npm, Python 3 e Firefox desktop 140 ou posterior.
 
@@ -114,7 +114,7 @@ npm run lint
 npm start
 ```
 
-O pacote pronto já inclui a biblioteca ZIP. `npm ci` só é necessário para desenvolver ou reconstruir. As dependências têm versões travadas no `package-lock.json`. O empacotamento fixa ordenação, permissões e datas dos arquivos para gerar pacotes reproduzíveis e publica seus hashes em `dist/SHA256SUMS.txt`.
+O pacote pronto já inclui as bibliotecas ZIP e WA-JS. `npm ci` só é necessário para desenvolver ou reconstruir. As dependências têm versões travadas no `package-lock.json`. O empacotamento fixa ordenação, permissões e datas dos arquivos para gerar pacotes reproduzíveis e publica seus hashes em `dist/SHA256SUMS.txt`.
 
 ### Organização
 
@@ -132,13 +132,13 @@ As permissões estão explicadas em [PRIVACIDADE.md](docs/PRIVACIDADE.md). A val
 `npm run build` produz:
 
 - `dist/whatsapp-scoop-temporario/`: instalação temporária descompactada.
-- `dist/whatsapp-scoop-0.1.4-temporario.zip`: o mesmo pacote em ZIP.
-- `dist/whatsapp-scoop-0.1.4-nao-assinado.xpi`: pacote para enviar à Mozilla; **não instala permanentemente no Firefox comum antes de assinar**.
-- `dist/whatsapp-scoop-0.1.4-codigo-fonte.zip`: fonte para revisão/reprodução.
+- `dist/whatsapp-scoop-0.2.0-temporario.zip`: o mesmo pacote em ZIP.
+- `dist/whatsapp-scoop-0.2.0-nao-assinado.xpi`: pacote para enviar à Mozilla; **não instala permanentemente no Firefox comum antes de assinar**.
+- `dist/whatsapp-scoop-0.2.0-codigo-fonte.zip`: fonte para revisão/reprodução.
 
 Para distribuir permanentemente, envie o XPI para assinatura no [portal de extensões Mozilla](https://addons.mozilla.org/developers/), junto com o código-fonte quando solicitado. Configure o login Google antes de oferecer Drive como funcional. A assinatura, a publicação e a validação OAuth dependem das contas do mantenedor.
 
-O projeto mantém a licença **GPL-3.0** já presente no repositório. A biblioteca zip.js tem licença BSD-3-Clause, incluída no pacote em `extension/vendor/LICENSE.zipjs`.
+O projeto mantém a licença **GPL-3.0** já presente no repositório. A biblioteca zip.js tem licença BSD-3-Clause (`extension/vendor/LICENSE.zipjs`) e WA-JS tem licença Apache-2.0 (`extension/vendor/LICENSE.wajs`).
 
 Confira [o que foi validado e o que ainda depende de teste real](docs/VALIDACAO.md) antes de usar o corpus como base de um artigo.
 
@@ -161,3 +161,11 @@ Apenas mídias enviadas na conversa são capturadas; imagens de prévias de site
 ### Interações por mensagem
 
 **interacoes_total** guarda a soma das reações exibida pelo WhatsApp, sem listar emojis ou participantes. **interacoes_precisao** indica `exata` quando o número completo está disponível, `aproximada` quando só há uma abreviação (ex.: “3,4 mil” vira 3400), ou `indisponivel` quando não foi possível ler a contagem. Nesse último caso o total fica vazio: ausência de dado não significa zero. **interacoes_observadas_em** registra quando a contagem foi lida. Ela pode mudar depois. Visualizações e compartilhamentos não são somados às reações.
+
+### Download pela API da sessão (versão 0.2.0)
+
+A rolagem continua revelando o histórico acessível. Para cada mídia, a extensão tenta baixar o arquivo pela **API da sessão WhatsApp Web**, usando [WA-JS 4.6.1](https://github.com/wppconnect-team/wa-js/tree/v4.6.1). Não é preciso cadastrar outra conta, escanear outro QR ou instalar um servidor. Quando esse método não funciona, tenta os controles da mídia na página. No índice, **origem_captura** distingue `api_wa_js`, `download_visualizador` ou `blob_reproducao`. Os identificadores `MID` e as associações no CSV permanecem os mesmos.
+
+Esta API não é oficial do WhatsApp. Ela depende de módulos internos, dos identificadores presentes no histórico carregado e dos bytes disponíveis à sua conta. Uma falha da API não prova que a mídia expirou; consulte o diagnóstico. A versão é experimental e precisa de confirmação na sessão real.
+
+Para forks: o módulo `extension/lib/api-media.js` roda funções fixas no contexto `MAIN` via `browser.scripting.executeScript`; não recebe código arbitrário. Ele confere a conversa ativa e um ID único antes de baixar e devolve blocos de 256 KiB, sem expor credenciais ao painel. O único caminho Node `eval(require)` do bundle upstream, desnecessário no Firefox, é substituído por um erro explícito no empacotamento. O patch está em `scripts/build.py` e é reproduzível com a versão travada no lockfile.

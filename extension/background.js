@@ -1,3 +1,4 @@
+import { ApiMedia } from "./lib/api-media.js";
 import { DiagnosticLog, downloadDiagnostic, jobSummary } from "./lib/diagnostics.js";
 import { Store } from "./lib/store.js";
 import { Drive, AuthRequired } from "./lib/drive.js";
@@ -11,6 +12,7 @@ let job = null, inspectCache = null, exportBusy = false, storageError = null;
 const diagnostics = new DiagnosticLog({ storage: browser.storage.local, privateValues: () => [job?.conversation?.title, job?.conversation?.identity] });
 const diagnosticReady = diagnostics.load();
 const ready = store.open().catch(e => { storageError = e; diagnostics.record("storage_unavailable", { operation: "initialize" }, e); });
+const apiMedia = new ApiMedia(browser.scripting);
 const pendingMedia = new Map(), downloadUrls = new Map();
 const config = fetch(browser.runtime.getURL("config.json")).then(r => r.json());
 const now = () => new Date().toISOString();
@@ -145,6 +147,27 @@ async function mediaEnd(m) {
   }
   await save(); return { ok: true, path, id: mediaId, paused: job.status === "paused" };
 }
+async function obtainApiMedia(m) {
+  const activeJob = job;
+  const token = crypto.randomUUID(), mediaId = `${m.messageId}:${m.attachment || 0}`;
+  try {
+    job.phase = "Recuperando mídia pela API da sessão"; await publish();
+    await apiMedia.prepare(activeJob.tabId);
+    const meta = await apiMedia.execute(activeJob.tabId, "begin", { token, id: m.messageId, attachment: m.attachment || 0, title: activeJob.conversation.title });
+    await mediaStart({ mediaId, messageId: m.messageId, size: meta.size, mime: meta.mime, originalName: meta.name, captureSource: meta.source });
+    for (let offset = 0; offset < meta.size;) {
+      if (job !== activeJob) throw new Error("A coleta mudou durante o download.");
+      const chunk = await apiMedia.execute(activeJob.tabId, "chunk", { token, offset });
+      if (!Number.isSafeInteger(chunk.size) || chunk.size < 1 || chunk.size > 256 * 1024 || atob(chunk.data).length !== chunk.size) throw new Error("Bloco inválido retornado pela API de mídia.");
+      await mediaChunk({ mediaId, offset, data: chunk.data }); offset += chunk.size;
+    }
+    const result = await enqueue(activeJob.key, () => mediaEnd({ mediaId }));
+    diagnostics.record("api_media_saved", { bytes: meta.size, mime: meta.mime, source: meta.source });
+    return result;
+  } catch (e) {
+    pendingMedia.delete(mediaId); diagnostics.record("api_media_failed", { operation: "session_api" }, e); throw e;
+  } finally { try { await apiMedia.execute(activeJob.tabId, "release", { token }); } catch { /* Reload/closed page releases memory. */ } if (job === activeJob && job.status === "running") { job.phase = "Coletando histórico"; await publish(); } }
+}
 async function exportLocal() {
   if (!job || exportBusy || ["running", "stopping"].includes(job.status)) throw new Error("Pause ou encerre a coleta antes de exportar.");
   if (job.status === "paused") { try { const settled = await collector("settle"); if (!settled?.ok) throw new Error(settled?.error || "Transferência ainda em andamento."); } catch (e) { if (pendingMedia.size || /ainda está sendo preservada|Transferência ainda em andamento/.test(e.message)) throw e; diagnostics.record("collector_unavailable_at_export", {}, e); } }
@@ -198,8 +221,8 @@ browser.downloads.onChanged.addListener(delta => {
   diagnostics.record("download_" + delta.state.current, { operation: tracked.kind, downloadId: delta.id }, delta.error ? new Error(delta.error.current) : undefined);
   if (delta.state.current === "interrupted" && tracked.kind === "archive" && job) { job.notice = "Download interrompido. Tente Exportar ZIP novamente ou baixe o log de diagnóstico."; save(); }
 });
-browser.tabs.onRemoved.addListener(id => { if (job?.tabId === id && ["running", "paused"].includes(job.status)) { pendingMedia.clear(); pause("A aba foi fechada. Exporte o material preservado e inicie outra coleta."); } });
-browser.tabs.onUpdated.addListener((id, change) => { if (job?.tabId === id && change.status === "loading" && ["running", "paused"].includes(job.status)) { pendingMedia.clear(); pause("A página foi recarregada. Exporte a coleta parcial antes de iniciar outra."); } });
+browser.tabs.onRemoved.addListener(id => { apiMedia.forget(id); if (job?.tabId === id && ["running", "paused"].includes(job.status)) { pendingMedia.clear(); pause("A aba foi fechada. Exporte o material preservado e inicie outra coleta."); } });
+browser.tabs.onUpdated.addListener((id, change) => { if (change.status === "loading") apiMedia.forget(id); if (job?.tabId === id && change.status === "loading" && ["running", "paused"].includes(job.status)) { pendingMedia.clear(); pause("A página foi recarregada. Exporte a coleta parcial antes de iniciar outra."); } });
 browser.runtime.onMessage.addListener(async (m, sender) => {
   if (m.target === "panel") return;
   try {
@@ -213,6 +236,7 @@ browser.runtime.onMessage.addListener(async (m, sender) => {
     if (m.source === "collector") {
       if (!job || sender.tab?.id !== job.tabId || m.job !== job.key) throw new Error("Origem de coleta inválida.");
       if (m.type === "batch") return await enqueue(job.key, () => processBatch(m));
+      if (m.type === "api-media") return await obtainApiMedia(m);
       if (m.type === "media-start") return await mediaStart(m);
       if (m.type === "media-chunk") return await mediaChunk(m);
       if (m.type === "media-end") return await enqueue(job.key, () => mediaEnd(m));
