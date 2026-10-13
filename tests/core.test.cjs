@@ -55,3 +55,10 @@ test('links preservam parâmetros, texto Unicode e URLs com parênteses', () => 
   const line=C.csvLine({links:['https://example.com/?q="aspas"&a=1'],midias_ids:['MID-000001','MID-000002'],midias:['midias/MID-000001.png','midias/MID-000002.mp4']});
   assert.match(C.csvHeader(),/"links"/);assert.match(C.csvHeader(),/"midias_ids"/);assert.match(line,/MID-000001 \| MID-000002/);assert.match(line,/midias\/MID-000002.mp4/);
 });
+test('metadados nativos recuperam data e legenda, preservam texto observado e distinguem contêiner vazio',()=>{
+ const blank={...message('m',''),data_hora:'',data_original:'',remetente:''};
+ const recovered=C.applyMessageMetadata(blank,{tipo:'imagem',legenda:'Legenda https://example.com',data_hora:'2026-10-13T12:00:00.000Z'},'https://whatsapp.com/channel/0029Vb8kT6E3AzNNDpBkN22J/201');
+ assert.equal(recovered.legenda,'Legenda https://example.com');assert.equal(recovered.data_hora,'2026-10-13T12:00:00.000Z');assert.equal(recovered.tipo,'imagem');assert.equal(recovered.status_midia,'nao_solicitada');assert.ok(recovered.links.includes('https://example.com'));assert.equal(C.isEmptyMessage(recovered),false);
+ assert.equal(C.isEmptyMessage(blank),true);assert.equal(C.isEmptyMessage({...blank,id:'3A0317DF2E46B668CE56'}),false);assert.equal(C.isEmptyMessage({...blank,tipo:'video'}),false);
+ assert.equal(C.applyMessageMetadata(message('x','observado'),{tipo:'texto',texto:'nativo'},'').texto,'observado');
+});

@@ -40,6 +40,7 @@ export async function reportFiles(store, job) {
     pseudonimizacao: job.options.pseudonymize ? "identificadores dos remetentes; texto e mídia não são anonimizados" : "não aplicada",
     datas_desconhecidas_excluidas_pelo_filtro: job.unknownDates || 0,
     identificadores_inferidos: !!job.fallbackIds,
+    registros_vazios_nao_contados: job.emptyRecords || 0,
     formatos: { csv: "mensagens.csv", xlsx: job.options.workbook ? "mensagens.xlsx" : null, indice_midias: ".system/indice_midias.json", relatorio: ".system/relatorio_coleta.json" },
     observacoes: [...(job.notes || []), "Datas interpretadas conforme idioma da interface e fuso do navegador.", "Campos ausentes não foram inventados.", "Áudio/vídeo com origem blob_reproducao preservam os bytes acessíveis no navegador; compare com o download manual para avaliar eventual transformação pelo WhatsApp.", "CSV aplica apóstrofo inicial a células que poderiam ser interpretadas como fórmulas; remova-o para recuperar o valor original.", "XLSX mantém textos como texto, datas em UTC e contagens numéricas. Campos acima de 32.767 caracteres ficam completos em partes na aba Textos longos. O resumo é um retrato da exportação e não muda ao filtrar."],
     falhas: job.failures || [], arquivos: index,

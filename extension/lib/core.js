@@ -74,6 +74,23 @@
       return resolved;
     }
   }
+  function applyMessageMetadata(m, metadata, permalink) {
+    const record = { ...m };
+    if (metadata) {
+      record._nativeConfirmed = true;
+      if (!record.data_hora && metadata.data_hora) { record.data_hora = metadata.data_hora; record.data_original ||= metadata.data_original || metadata.data_hora; }
+      if (metadata.tipo) record.tipo = metadata.tipo;
+      if (record.tipo === "texto") record.texto ||= metadata.texto || "";
+      else { record.legenda ||= record.texto || metadata.legenda || ""; record.texto = ""; if (record.status_midia === "nao_aplicavel") record.status_midia = "nao_solicitada"; }
+    }
+    record.link_mensagem ||= permalink || "";
+    record.links = [...new Set([...(record.links || []), ...extractLinks((record.texto || "") + "\n" + (record.legenda || ""))])];
+    return record;
+  }
+  function isNativeMessageId(id) { return /^[a-f0-9]{18,64}$/i.test(id || "") || /^(true|false)_[^_]+@[^_]+_/.test(id || ""); }
+  function isEmptyMessage(m) {
+    return !m._nativeConfirmed && !isNativeMessageId(m.id) && m.tipo === "texto" && !m.texto && !m.legenda && !m.data_hora && !m.remetente && !m.resposta_a && !m.link_mensagem && !(m.links || []).length;
+  }
   function csvCell(value) {
     const s = String(value ?? "");
     // Spreadsheet-safe export. Apostrophe is documented and reversible.
@@ -91,7 +108,7 @@
   function mediaExtension(mime) {
     return ({ "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif", "video/mp4": "mp4", "audio/ogg": "ogg", "audio/mpeg": "mp3", "audio/mp4": "m4a", "application/pdf": "pdf" })[mime?.split(";")[0]] || "bin";
   }
-  const api = { columns, extractLinks, safeName, hashText, parseDate, inRange, fingerprint, Timeline, csvCell, csvLine, csvHeader, pseudonymize, mediaExtension };
+  const api = { isNativeMessageId, applyMessageMetadata, isEmptyMessage, columns, extractLinks, safeName, hashText, parseDate, inRange, fingerprint, Timeline, csvCell, csvLine, csvHeader, pseudonymize, mediaExtension };
   root.ScoopCore = api;
   if (typeof module !== "undefined") module.exports = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

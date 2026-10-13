@@ -14,7 +14,7 @@ Produzido por **[douglasferreira](https://douglasferreira.me)**. A ferramenta or
 
 Este é o **resumo**; o passo a passo completo está logo abaixo. Você não precisa saber programar.
 
-1. Baixe e descompacte o [pacote de teste](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.3.1-beta/whatsapp-scoop-0.3.1-temporario.zip).
+1. Baixe e descompacte o [pacote de teste](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.3.2-beta/whatsapp-scoop-0.3.2-temporario.zip).
 2. No Firefox, abra `about:debugging` → **Este Firefox** → **Carregar extensão temporária** e selecione `manifest.json` na pasta descompactada.
 3. Abra o grupo ou canal no WhatsApp Web, abra o painel **Whatsapp Scoop** e clique em **Iniciar coleta**. Marque **Incluir mídias** se quiser os arquivos.
 4. Ao terminar, salve e descompacte o ZIP. Abra `mensagens.csv` como uma planilha e conserve os demais arquivos junto dela. Se marcar a opção XLSX, também terá uma planilha pronta para análise.
@@ -25,7 +25,7 @@ Este é o **resumo**; o passo a passo completo está logo abaixo. Você não pre
 
 Use **Firefox para computador, versão 140 ou posterior**. Não é necessário instalar Python ou outros programas de desenvolvimento.
 
-1. **Baixe o pacote.** Clique em [whatsapp-scoop-0.3.1-temporario.zip](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.3.1-beta/whatsapp-scoop-0.3.1-temporario.zip). Normalmente ele será salvo na pasta **Downloads**. Use esse arquivo, e não o pacote de código-fonte ou o arquivo `.xpi`.
+1. **Baixe o pacote.** Clique em [whatsapp-scoop-0.3.2-temporario.zip](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.3.2-beta/whatsapp-scoop-0.3.2-temporario.zip). Normalmente ele será salvo na pasta **Downloads**. Use esse arquivo, e não o pacote de código-fonte ou o arquivo `.xpi`.
 2. **Descompacte o arquivo.** ZIP é um arquivo que reúne uma pasta e seus conteúdos. No Windows, clique com o botão direito e escolha **Extrair tudo**. No macOS, dê dois cliques no ZIP. Guarde a pasta extraída: você precisará dela nas próximas instalações.
 3. **Abra a página de instalação.** No Firefox, clique na barra de endereço, no alto da janela. Digite `about:debugging` e pressione **Enter**.
 4. **Escolha este navegador.** Clique em **Este Firefox**, à esquerda. Depois clique em **Carregar extensão temporária…**. Se o Firefox estiver em inglês, os nomes são **This Firefox** e **Load Temporary Add-on…**.
@@ -62,6 +62,8 @@ Descompacte o ZIP da coleta como fez com o pacote de instalação. **Conserve a 
 | `.system/relatorio_coleta.json` | Registro da versão, período, quantidades, falhas e interrupções. Guarde-o para documentar a metodologia. |
 
 **Se escolheu XLSX, abra `mensagens.xlsx` no Excel ou LibreOffice.** Na aba **Mensagens**, use as setas dos cabeçalhos para filtrar por remetente, tipo, data ou interações. As datas estão em UTC e as contagens são numéricas. O resumo registra a coleta e não muda ao filtrar. Campos muito longos ficam completos, em partes numeradas, na aba **Textos longos**, quando necessária.
+
+A extensão tenta recuperar datas, textos e legendas pela sessão do WhatsApp quando não aparecem na interface. Se data ou texto de uma mensagem reconhecida permanecerem ilegíveis após novas tentativas, a coleta pausa para evitar registros incompletos. Use **Continuar** para tentar novamente ou **Encerrar e exportar** para obter somente a parte já coletada. Mídias sem legenda continuam com texto vazio; contêineres sem conteúdo reconhecível não entram na contagem e são registrados no relatório. Mensagens sem data reconhecida ficam ao final do CSV.
 
 **Contagem:** cada mensagem corresponde a um registro do CSV. O cabeçalho não é uma mensagem, e um texto pode ocupar várias linhas dentro da mesma célula. Por isso, contar as linhas do arquivo em um editor de texto pode dar um total maior que o mostrado no painel.
 

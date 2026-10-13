@@ -27,14 +27,19 @@ export async function pageMediaAction(action, args) {
     if (action === "links") {
       const metadata = chat.newsletterMetadata || W.whatsapp?.NewsletterStore?.get?.(chat.id)?.newsletterMetadata;
       const code = metadata?.inviteCode || metadata?.newsletterInviteLinkMetadataMixin?.inviteCode || args.channelCode;
-      const links = {};
-      if (!/^[A-Za-z0-9]{10,64}$/.test(code || "")) return { ok: true, links };
+      const links = {}, messages = {};
       for (const id of (args.ids || []).slice(0, 100)) {
         const matched = models.filter(m => m.id?.toString?.() === id || m.id?._serialized === id || m.id?.id === id);
-        const serverId = matched.length === 1 ? matched[0].serverId : null;
-        if (/^[1-9]\d*$/.test(String(serverId ?? "")) && Number.isSafeInteger(Number(serverId))) links[id] = `https://whatsapp.com/channel/${code}/${serverId}`;
+        if (matched.length !== 1) continue;
+        const msg = matched[0], serverId = msg.serverId;
+        const type = ({ chat: "texto", image: "imagem", video: "video", audio: "audio", ptt: "audio", document: "documento", sticker: "figurinha" })[msg.type] || "";
+        const seconds = Number(msg.t);
+        const date = Number.isFinite(seconds) && seconds > 0 && seconds < 253402300800 ? new Date(seconds * 1000).toISOString() : "";
+        messages[id] = { data_original: date ? String(msg.t) : "", tipo: type, texto: type === "texto" && typeof msg.body === "string" ? msg.body : "", legenda: type && type !== "texto" && typeof msg.caption === "string" ? msg.caption : "", data_hora: date };
+
+        if (/^[A-Za-z0-9]{10,64}$/.test(code || "") && /^[1-9]\d*$/.test(String(serverId ?? "")) && Number.isSafeInteger(Number(serverId))) links[id] = `https://whatsapp.com/channel/${code}/${serverId}`;
       }
-      return { ok: true, links };
+      return { ok: true, links, messages };
     }
     const matches = models.filter(m => m.id?.toString?.() === args.id || m.id?._serialized === args.id || m.id?.id === args.id);
     if (matches.length !== 1) return fail("message", "API não encontrou um identificador único para esta mensagem no histórico carregado.");

@@ -100,17 +100,8 @@ async function resume() {
 }
 async function processBatch(message) {
   if (!job || message.job !== job.key) throw new Error("Coleta inválida.");
-  if (job.conversation.type === "canal" && message.messages.some(m => !m.link_mensagem)) {
-    try {
-      await apiMedia.prepare(job.tabId);
-      const result = await apiMedia.execute(job.tabId, "links", { title: job.conversation.title, channelCode: job.conversation.channelCode, ids: message.messages.map(m => m.id) });
-      for (const m of message.messages) m.link_mensagem ||= result.links?.[m.id] || "";
-    } catch (e) {
-      diagnostics.record("message_links_unavailable", { operation: "session_api" }, e);
-      const note = "Links permanentes indisponíveis em parte da coleta; campos vazios não foram inferidos.";
-      if (!job.notes.includes(note)) job.notes.push(note);
-    }
-  }
+  job.emptyRecords = message.emptyRecords || 0;
+
   for (const m of message.messages) {
     const sort = m.data_hora || "9999-sem-data";
     const key = `${job.key}:${sort}:${m.id}`;
@@ -250,6 +241,22 @@ browser.runtime.onMessage.addListener(async (m, sender) => {
     if (storageError) throw storageError;
     if (m.source === "collector") {
       if (!job || sender.tab?.id !== job.tabId || m.job !== job.key) throw new Error("Origem de coleta inválida.");
+      if (m.type === "message-metadata") {
+        try {
+          await apiMedia.prepare(job.tabId);
+          const result = { ok: true, links: {}, messages: {} };
+          for (let offset = 0; offset < m.ids.length; offset += 100) {
+            const part = await apiMedia.execute(job.tabId, "links", { title: job.conversation.title, channelCode: job.conversation.channelCode, ids: m.ids.slice(offset, offset + 100) });
+            Object.assign(result.links, part.links); Object.assign(result.messages, part.messages);
+          }
+          return result;
+        } catch (e) {
+          diagnostics.record("message_metadata_unavailable", { operation: "session_api" }, e);
+          const note = "Metadados da API indisponíveis em parte da coleta; confira campos vazios.";
+          if (!job.notes.includes(note)) job.notes.push(note);
+          return { ok: true, links: {}, messages: {} };
+        }
+      }
       if (m.type === "batch") return await enqueue(job.key, () => processBatch(m));
       if (m.type === "api-media") return await obtainApiMedia(m);
       if (m.type === "media-start") return await mediaStart(m);

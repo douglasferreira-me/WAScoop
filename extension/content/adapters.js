@@ -28,7 +28,7 @@
     return Array.from(root.querySelectorAll(selectors)).filter(el => {
       if (!el.getClientRects().length) return false;
       if (el.parentElement?.closest(selectors) && root.contains(el.parentElement.closest(selectors))) return false;
-      return el.matches('.message-in,.message-out,[data-testid="msg-container"],[data-testid="newsletter-message"]') || !!el.querySelector('[data-pre-plain-text], .selectable-text, [data-testid*="msg-text"], img, video, audio, [data-icon*="document"]');
+      return C.isNativeMessageId(el.getAttribute('data-id')) || el.matches('.message-in,.message-out,[data-testid="msg-container"],[data-testid="newsletter-message"]') || !!el.querySelector('[data-pre-plain-text], .selectable-text, [data-testid*="msg-text"], img, video, audio, [data-icon*="document"]');
     });
   }
   function scrollBox(root, messages) {

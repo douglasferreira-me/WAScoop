@@ -29,3 +29,9 @@ test('links permanentes usam código do canal e serverId confirmado, sem confund
  global.WPP.chat.getActiveChat=()=>({name:'Canal',msgs:{models:[{id:{id:'201'},serverId:201}]}});
  assert.deepEqual((await pageMediaAction('links',{title:'Canal',ids:['201']})).links,{});
 });
+test('API lê texto, legenda e data sem tratar miniatura base64 como legenda',async()=>{
+ const {pageMediaAction}=await importFile('lib/api-media.js');
+ global.WPP={isReady:true,chat:{getActiveChat:()=>({name:'Canal',msgs:{models:[{id:{id:'imagem'},type:'image',body:'BASE64_THUMBNAIL',caption:'Legenda original',t:1791892800},{id:{id:'texto'},type:'chat',body:'Texto original',t:1791892800}]}})}};
+ const r=await pageMediaAction('links',{title:'Canal',ids:['imagem','texto']});
+ assert.equal(r.messages.imagem.legenda,'Legenda original');assert.equal(r.messages.imagem.texto,'');assert.equal(r.messages.texto.texto,'Texto original');assert.equal(r.messages.imagem.data_hora,new Date(1791892800000).toISOString());assert.equal(r.messages.imagem.data_original,'1791892800');
+});

@@ -119,12 +119,27 @@
         rows = A.rows(info.root); box = A.scrollBox(info.root, rows);
         if (!rows.length) { await pause("Nenhuma mensagem reconhecida. Coleta preservada para exportação parcial."); continue; }
         const adapter = info.type === "canal" ? new A.ChannelAdapter() : new A.GroupAdapter();
-        const messages = s.timeline.observe(rows.map(row => adapter.read(row, info)));
+        let parsed = rows.map(row => adapter.read(row, info));
+        if (info.type === "canal" || parsed.some(m => !C.isEmptyMessage(m) && (!m.data_hora || m.tipo === "texto" && !m.texto && !m.legenda))) {
+          const result = await send({ type: "message-metadata", job: s.job, ids: parsed.map(m => m.id) });
+          parsed = parsed.map(m => C.applyMessageMetadata(m, result.messages?.[m.id], result.links?.[m.id]));
+        }
+        const messages = s.timeline.observe(parsed);
+        s.emptyRecords ||= new Set();
+        if (messages.some(m => !s.seen.has(m.id) && !m._afterBoundary && !C.isEmptyMessage(m) && (!m.data_hora || m.tipo === "texto" && !m.texto && !m.legenda))) {
+          s.metadataRetries ||= new Map();
+          const retries = s.metadataRetries.get(messages.map(m => m.id).join("|")) || 0;
+          if (retries < 3) { s.metadataRetries.set(messages.map(m => m.id).join("|"), retries + 1); await delay(750); continue; }
+          await pause("Algumas mensagens ainda não disponibilizaram data ou texto. A coleta pausou para evitar registros incompletos. Aguarde e use Continuar, ou encerre com exportação parcial.");
+          continue;
+        }
+        s.metadataRetries?.clear();
         const signature = messages.map(m => m.id).join("|");
         const payload = [];
         for (let i = 0; i < messages.length; i++) {
           if (s.stopped || s.paused) break;
           const m = messages[i];
+          if (C.isEmptyMessage(m)) { s.emptyRecords.add(m.id); continue; }
           if (m._afterBoundary) continue;
           if (m.data_hora && +new Date(m.data_hora) > s.startedAt) continue;
           if (!C.inRange(m.data_hora, s.options.start, s.options.end)) { if (!m.data_hora) s.unknownDates.add(m.id); continue; }
@@ -170,7 +185,7 @@
           m.midias = media; m.midias_ids = mediaIds;
           payload.push(m);
         }
-        const result = await send({ type: "batch", job: s.job, messages: payload, unknownDates: s.unknownDates.size, fallbackIds: messages.some(m => m._fallback) });
+        const result = await send({ type: "batch", job: s.job, messages: payload, emptyRecords: s.emptyRecords.size, unknownDates: s.unknownDates.size, fallbackIds: messages.some(m => m._fallback) });
         if (!result.ok) throw new Error(result.error);
         for (const m of payload) s.seen.add(m.id);
         s.inMessage = false;
@@ -218,7 +233,7 @@
     if (message.type === "resume") {
       if (!session || session.stopped) throw new Error("Sessão de coleta perdida. Exporte o material preservado e inicie outra coleta.");
       if (!await verify()) throw new Error("Volte à conversa original para continuar.");
-      session.paused = false;
+      session.paused = false; session.metadataRetries?.clear();
       if (!session.loopRunning) collect(session);
       return { ok: true };
     }
