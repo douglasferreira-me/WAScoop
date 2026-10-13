@@ -97,6 +97,6 @@ Na metodologia, registre a versão indicada no relatório, data da coleta, perí
 
 ## Para desenvolver ou fazer um fork
 
-A extensão usa JavaScript, HTML e CSS para funcionar no Firefox sem programa auxiliar; Python prepara os pacotes. A coleta combina rolagem e leitura da página com download de mídias pela sessão conectada, usando WA-JS. Essa integração é não oficial; não há Baileys nem servidor próprio.
+A extensão usa JavaScript, HTML e CSS para funcionar no Firefox sem programa auxiliar; Python prepara os pacotes. A coleta combina rolagem e leitura da página com download de mídias pela sessão conectada, usando WA-JS. 
 
 O [guia técnico para forks](docs/DESENVOLVIMENTO.md) explica instalação do ambiente, organização do código, testes, empacotamento e distribuição. O projeto usa **GPL-3.0**, com licenças próprias para as bibliotecas incluídas.
