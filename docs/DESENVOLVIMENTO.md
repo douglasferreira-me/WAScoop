@@ -6,12 +6,9 @@ Este guia complementa as [instruções de uso](../README.md). O usuário instala
 
 Você precisa de Git, Node.js 22 ou posterior (com npm), Python 3 e Firefox desktop 140 ou posterior.
 
-1. No GitHub, clique em **Fork** no [repositório original](https://github.com/douglasferreira-me/WAScoop) e crie uma cópia na sua conta.
-2. No terminal, execute os comandos abaixo, substituindo `SEU-USUARIO` pelo seu nome no GitHub.
+Na raiz do seu checkout, execute:
 
 ```sh
-git clone https://github.com/SEU-USUARIO/WAScoop.git
-cd WAScoop
 npm ci
 npm test
 npm run build
@@ -32,7 +29,8 @@ A página fornece mensagens conforme a conversa é rolada. O coletor registra os
 | `extension/lib/api-media.js` | Recuperar mídias pela WA-JS na sessão conectada. |
 | `extension/lib/core.js` | Datas, deduplicação, pseudônimos e formato do CSV. |
 | `extension/lib/store.js` | Persistência e leitura paginada no IndexedDB. |
-| `extension/lib/export.js` | CSV, ZIP, índice de mídias e relatório. |
+| `extension/lib/export.js` | CSV, XLSX, ZIP, índice de mídias e relatório. |
+| `extension/lib/workbook.js` | XLSX em SpreadsheetML, com estilos, filtros, datas e contagens tipadas; usa a biblioteca ZIP já incluída. |
 | `extension/lib/drive.js` | Autorização Google e uploads retomáveis. |
 | `extension/lib/diagnostics.js` | Registro local de diagnóstico com campos permitidos e remoção de informações sensíveis. |
 | `extension/background.js` | Coordenação dos módulos, comandos e estado da coleta. |
@@ -56,6 +54,9 @@ O build substitui um caminho Node baseado em `eval(require)` do bundle upstream,
 - O CSV usa UTF-8 com BOM, vírgulas, campos entre aspas e linhas CRLF. Datas reconhecidas são ISO/UTC; datas desconhecidas ficam vazias e são ordenadas ao final.
 - Para evitar fórmulas em planilhas, campos que começam com sinais de fórmula recebem um apóstrofo. Para reconstrução textual, remova um apóstrofo somente diante de `=`, `+`, `-`, `@`, tabulação ou retorno de carro; a regra consta no relatório.
 - `MID-000001` identifica uma mídia dentro da coleta, na ordem de recuperação. `midias_ids` e `midias` mantêm associações na mesma ordem, também registradas no índice com mensagem, caminho e SHA-256.
+- `options.workbook` controla a geração opcional de XLSX; o padrão é desmarcado. Não gere o workbook quando essa opção estiver ausente ou falsa. A interface avisa sobre o tempo adicional.
+- O XLSX usa a mesma transformação e os mesmos pseudônimos do CSV. Textos são células `inlineStr`, nunca fórmulas. Datas são valores numéricos em UTC; contagens desconhecidas continuam vazias. A geração percorre o IndexedDB sem montar uma matriz do corpus inteiro. Campos acima de 32.767 caracteres ficam completos em partes na aba Textos longos; tabelas acima de 1.048.575 registros são divididas em abas.
+- CSV e, quando solicitado, XLSX ficam na raiz, mídias em `midias/` e JSONs em `.system/`, inclusive no fluxo experimental do Drive. Os links da aba Mídias são relativos: exigem o ZIP extraído e a pasta preservada.
 - Reações são uma observação temporal. Preserve a distinção entre total exato, aproximado e indisponível; ausência não equivale a zero.
 
 ## Validar antes de distribuir
@@ -68,7 +69,7 @@ FIREFOX_BIN=/caminho/para/firefox GECKODRIVER_BIN=/caminho/para/geckodriver npm 
 
 Instale previamente o geckodriver e substitua os caminhos pelos executáveis locais. Esse teste usa uma API simulada: não comprova compatibilidade com uma sessão WhatsApp real. Siga o [roteiro de testes manuais](TESTES.md) em grupo e canal sob seu controle, comparando CSV, mídias, referências, pausas e exportações parciais. Registre limites em [VALIDACAO.md](VALIDACAO.md).
 
-O Drive exige cliente Google e redirecionamento reais. Siga [GOOGLE_DRIVE.md](GOOGLE_DRIVE.md); não o anuncie como operacional sem validar login e upload. O fluxo OAuth atual é legado e desaconselhado pelo Google para novas aplicações. Tokens ficam somente na sessão; uploads usam blocos de 1 MiB e até quatro tentativas por requisição.
+A exportação direta para o Drive está em implementação e validação; exige cliente Google e redirecionamento reais. Siga [GOOGLE_DRIVE.md](GOOGLE_DRIVE.md); não o anuncie como operacional sem validar login e upload. O fluxo OAuth atual é legado e desaconselhado pelo Google para novas aplicações. Tokens ficam somente na sessão; uploads usam blocos de 1 MiB e até quatro tentativas por requisição.
 
 ## Empacotar e publicar seu fork
 

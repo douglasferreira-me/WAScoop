@@ -23,6 +23,9 @@ export async function csvBlob(store, job) {
   const blob = await new Response(csvStream(store, job)).blob();
   return new Blob([blob], { type: "text/csv;charset=utf-8" });
 }
+export function xlsxBlob(store, job, progress) {
+  return globalThis.ScoopWorkbook.create(store, job, { message: (m, names) => publicMessage(m, job, names), progress });
+}
 export async function reportFiles(store, job) {
   const index = [];
   for await (const row of store.records("media", job.key)) {
@@ -37,26 +40,28 @@ export async function reportFiles(store, job) {
     pseudonimizacao: job.options.pseudonymize ? "identificadores dos remetentes; texto e mídia não são anonimizados" : "não aplicada",
     datas_desconhecidas_excluidas_pelo_filtro: job.unknownDates || 0,
     identificadores_inferidos: !!job.fallbackIds,
-    observacoes: [...(job.notes || []), "Datas interpretadas conforme idioma da interface e fuso do navegador.", "Campos ausentes não foram inventados.", "Áudio/vídeo com origem blob_reproducao preservam os bytes acessíveis no navegador; compare com o download manual para avaliar eventual transformação pelo WhatsApp.", "CSV aplica apóstrofo inicial a células que poderiam ser interpretadas como fórmulas; remova-o para recuperar o valor original."],
+    formatos: { csv: "mensagens.csv", xlsx: job.options.workbook ? "mensagens.xlsx" : null, indice_midias: ".system/indice_midias.json", relatorio: ".system/relatorio_coleta.json" },
+    observacoes: [...(job.notes || []), "Datas interpretadas conforme idioma da interface e fuso do navegador.", "Campos ausentes não foram inventados.", "Áudio/vídeo com origem blob_reproducao preservam os bytes acessíveis no navegador; compare com o download manual para avaliar eventual transformação pelo WhatsApp.", "CSV aplica apóstrofo inicial a células que poderiam ser interpretadas como fórmulas; remova-o para recuperar o valor original.", "XLSX mantém textos como texto, datas em UTC e contagens numéricas. Campos acima de 32.767 caracteres ficam completos em partes na aba Textos longos. O resumo é um retrato da exportação e não muda ao filtrar."],
     falhas: job.failures || [], arquivos: index,
     citacao: `douglasferreira. Whatsapp Scoop, versão ${browser.runtime.getManifest().version}. https://github.com/douglasferreira-me/WAScoop. Coleta em ${job.startedAt}.`
   };
   return { index: new Blob([JSON.stringify(index, null, 2)], { type: "application/json" }), report: new Blob([JSON.stringify(report, null, 2)], { type: "application/json" }) };
 }
-export async function zipBlob(store, job, progress) {
+export async function zipBlob(store, job, progress = () => {}, workbookProgress = () => {}) {
   zip.configure({ useWebWorkers: false, useCompressionStream: false });
   const writer = new zip.ZipWriter(new zip.BlobWriter("application/zip"));
   const timestamp = new Date(job.startedAt);
   const add = (name, blob) => writer.add(name, new zip.BlobReader(blob), { level: 0, lastModDate: timestamp });
   try {
     await writer.add("mensagens.csv", csvStream(store, job), { level: 0, lastModDate: timestamp });
+    if (job.options.workbook) await add("mensagens.xlsx", await xlsxBlob(store, job, workbookProgress));
     let n = 0;
     for await (const row of store.records("media", job.key)) {
       if (!row.complete) continue;
       await add(row.path, row.blob); progress(++n);
     }
     const files = await reportFiles(store, job);
-    await add("indice_midias.json", files.index); await add("relatorio_coleta.json", files.report);
+    await add(".system/indice_midias.json", files.index); await add(".system/relatorio_coleta.json", files.report);
     return await writer.close();
   } catch (e) { try { await writer.close(); } catch { /* Preserve original error. */ } throw e; }
 }

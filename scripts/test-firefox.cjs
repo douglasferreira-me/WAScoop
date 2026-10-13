@@ -61,8 +61,9 @@ async function main() {
     assert.equal(inspected.ok, true, JSON.stringify(inspected));
     if (!inspected.conversation) console.log(await driver.executeAsyncScript(done => browser.tabs.query({url:"http://127.0.0.1/*"}).then(async tabs => { const out=[];for(const t of tabs){try{out.push(await browser.tabs.executeScript(t.id,{code:'JSON.stringify({core:typeof ScoopCore,adapters:typeof ScoopAdapters,title:document.querySelector("header span")?.title})'}));}catch(e){out.push(e.message)}}done(out);})));
     assert.equal(inspected.conversation?.title, "Grupo sintético", JSON.stringify(inspected));
-    await driver.executeScript("document.getElementById('media').checked=true;document.getElementById('pseudonymize').checked=true;");
-    assert.equal((await call("start", { options: { media: true, pseudonymize: true, destination: "zip", start: "", end: "" } })).ok, true);
+    assert.equal(await driver.executeScript("return document.getElementById('workbook').checked"), false);
+    await driver.executeScript("document.getElementById('media').checked=true;document.getElementById('workbook').checked=true;document.getElementById('pseudonymize').checked=true;");
+    assert.equal((await call("start", { options: { media: true, workbook: true, pseudonymize: true, destination: "zip", start: "", end: "" } })).ok, true);
     await wait(2200); assert.equal((await call("pause")).ok, true);
     await driver.switchTo().window(fixtureTab); await driver.executeScript("document.querySelector('header span').setAttribute('title','Outra conversa')");
     await driver.switchTo().window(panelTab); assert.equal((await call("resume")).ok, false);
@@ -90,7 +91,14 @@ async function main() {
     const entries = await reader.getEntries();
     const csv = await entries.find(e => e.filename === "mensagens.csv").getData(new zip.TextWriter());
     assert.match(csv, /participante_0001/); assert.match(csv, /https:\/\/example.com\/message\/26\?a=1&b=2/); assert.match(csv, /MID-000001/); assert.match(csv, /"3405","exata"/); assert.doesNotMatch(csv, /"Ana"/);
-    const report = JSON.parse(await entries.find(e => e.filename === "relatorio_coleta.json").getData(new zip.TextWriter()));
+    assert.ok(entries.some(e => e.filename === "mensagens.xlsx"));
+    assert.ok(!entries.some(e => e.filename === "relatorio_coleta.json" || e.filename === "indice_midias.json"));
+    const xlsx = new zip.ZipReader(new zip.Uint8ArrayReader(await entries.find(e => e.filename === "mensagens.xlsx").getData(new zip.Uint8ArrayWriter())));
+    const workbookEntries = await xlsx.getEntries();
+    const sheet = await workbookEntries.find(e => e.filename === "xl/worksheets/sheet2.xml").getData(new zip.TextWriter());
+    assert.match(sheet, /participante_0001/); assert.match(sheet, /MID-000001/); assert.match(sheet, /<v>3405<\/v>/); assert.match(sheet, /<autoFilter /); assert.doesNotMatch(sheet, /<f[ >]/);
+    await xlsx.close();
+    const report = JSON.parse(await entries.find(e => e.filename === ".system/relatorio_coleta.json").getData(new zip.TextWriter()));
     for (const file of report.arquivos) { assert.match(file.midia_id, /^MID-\d{6}$/); assert.ok(file.arquivo.startsWith("midias/" + file.midia_id)); assert.ok(csv.includes(file.arquivo)); }
     assert.equal(report.mensagens, 35); assert.equal(report.midias_obtidas, 6); assert.equal(report.midias_com_falha, 1);
     assert.equal(report.arquivos.find(a => a.mensagem_id === "fixture-7").origem_captura, "api_wa_js");
@@ -101,7 +109,7 @@ async function main() {
     await driver.switchTo().window(fixtureTab); await driver.get(origin + "/channel");
     await driver.switchTo().window(panelTab);
     const channel = await call("inspect"); assert.equal(channel.conversation.type, "canal");
-    assert.equal((await call("start", { options: { media: false, pseudonymize: false, destination: "zip", start: "", end: "" } })).ok, true);
+    assert.equal((await call("start", { options: { media: false, workbook: true, pseudonymize: false, destination: "zip", start: "", end: "" } })).ok, true);
     for (let n=0;n<20;n++) { const started=(await call("state")).state; if(started.job.count>0)break; await wait(200); }
     assert.equal((await call("stop")).ok, true);
     let partial;
@@ -110,7 +118,15 @@ async function main() {
     assert.equal((await call("restore")).ok, true); assert.equal((await call("state")).state.job.count, partial.job.count);
     for (let n = 0; n < 20; n++) { archives = (await fs.readdir(downloads)).filter(n => n.endsWith(".zip")); if (archives.length === 2) break; await wait(500); }
     assert.equal(archives.length, 2);
-    await fs.writeFile("docs/firefox-fixture-result.json", JSON.stringify({ extensionVersion: manifest.version, browser: (await driver.getCapabilities()).get("browserVersion"), fixture: "grupo e canal sintéticos locais; API WPP simulada; não WhatsApp real", messages: state.job.count, media: state.job.mediaCount, failures: state.job.mediaFailures, partialChannelMessages: partial.job.count, checked: ["instalação temporária", "painel", "rolagem com sobreposição", "pausa", "troca de conversa", "retomada", "API de sessão simulada em MAIN", "download original via hook Firefox como fallback", "foto Abrir imagem", "álbum com dois arquivos idênticos e IDs distintos", "links no CSV", "total de interações no CSV", "associação MID no CSV/índice/arquivo", "diagnóstico antes e depois da coleta", "ZIP real", "pseudônimos", "canal", "encerramento parcial", "recuperação do IndexedDB"], overrides: ["origem local da fixture", "saveAs=false para evitar diálogo nativo"], passed: true }, null, 2));
+    const partialArchive = archives.find(name => name !== archives.find(name => name.includes("Grupo")));
+    const partialReader = new zip.ZipReader(new zip.Uint8ArrayReader(await fs.readFile(path.join(downloads, partialArchive))));
+    const partialEntries = await partialReader.getEntries();
+    assert.ok(partialEntries.some(e => e.filename === "mensagens.xlsx"));
+    const partialReport = JSON.parse(await partialEntries.find(e => e.filename === ".system/relatorio_coleta.json").getData(new zip.TextWriter()));
+    assert.equal(partialReport.motivo_termino, "interrompida_pelo_usuario");
+    assert.equal(partialReport.mensagens, partial.job.count);
+    await partialReader.close();
+    await fs.writeFile("docs/firefox-fixture-result.json", JSON.stringify({ extensionVersion: manifest.version, browser: (await driver.getCapabilities()).get("browserVersion"), fixture: "grupo e canal sintéticos locais; API WPP simulada; não WhatsApp real", messages: state.job.count, media: state.job.mediaCount, failures: state.job.mediaFailures, partialChannelMessages: partial.job.count, checked: ["instalação temporária", "painel", "rolagem com sobreposição", "pausa", "troca de conversa", "retomada", "API de sessão simulada em MAIN", "download original via hook Firefox como fallback", "foto Abrir imagem", "álbum com dois arquivos idênticos e IDs distintos", "links no CSV", "total de interações no CSV", "associação MID no CSV/índice/arquivo", "diagnóstico antes e depois da coleta", "ZIP real", "XLSX opcional com filtros e tipos numéricos", "JSONs em .system", "pseudônimos", "canal", "encerramento parcial", "recuperação do IndexedDB"], overrides: ["origem local da fixture", "saveAs=false para evitar diálogo nativo"], passed: true }, null, 2));
     console.log("PASS: Firefox real, grupo com 35 mensagens/6 mídias/1 falha; canal parcial, ZIP e pausa/retomada.");
   } finally { if (driver) await driver.quit(); server.close(); await fs.rm(root, { recursive: true, force: true }); }
 }

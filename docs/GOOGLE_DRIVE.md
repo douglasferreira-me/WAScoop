@@ -1,5 +1,7 @@
 # Login direto no Google Drive — mantenedor
 
+> **Em implementação e validação.** Use ZIP local enquanto a configuração e os testes com credenciais reais não estiverem concluídos.
+
 O pesquisador só deve ver **Conectar ao Google Drive**, escolher a conta e autorizar. Esta configuração pertence ao mantenedor da distribuição, não a cada usuário.
 
 ## Decisão arquitetural
@@ -28,7 +30,7 @@ Este é o fluxo implícito documentado no exemplo da Mozilla, mantido pelo Googl
 
 ## Comportamento de upload
 
-Cada coleta cria uma pasta `Whatsapp Scoop - [conversa] - [data]`, com `midias/` quando necessário. O aplicativo acessa os arquivos que cria; não precisa de autorização para ler o Drive inteiro. As mídias são salvas localmente antes do upload.
+Cada coleta cria uma pasta `Whatsapp Scoop - [conversa] - [data]`, com `midias/` quando necessário e `.system/` para índice e relatório. CSV e XLSX ficam na raiz da coleta. O aplicativo acessa os arquivos que cria; não precisa de autorização para ler o Drive inteiro. As mídias são salvas localmente antes do upload.
 
 O cliente usa sessões de upload retomável persistidas com o registro do arquivo. Uma falha de autorização pausa a coleta/envio. Reconectar permite consultar a posição já confirmada pelo Google e continuar. Falhas repetidas ficam visíveis; o arquivo continua disponível para ZIP. Se uma sessão de upload expirar no Google, o usuário deve exportar o ZIP preservado; não há promessa de retomada indefinida.
 

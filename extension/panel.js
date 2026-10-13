@@ -19,7 +19,7 @@ function render(state) {
   $("progress-section").hidden = !j;
   $("connect").textContent = state.driveConnected ? "Reconectar ao Google Drive" : "Conectar ao Google Drive";
   $("disconnect").hidden = !state.driveConnected;
-  $("drive-status").textContent = state.driveConnected ? "Conta conectada durante esta sessão." : state.driveConfigured ? "Conecte sua conta para enviar arquivos." : "Login ainda não configurado pelo mantenedor. ZIP local está disponível.";
+  $("drive-status").textContent = state.driveConnected ? "Conta conectada durante esta sessão. Integração em validação." : state.driveConfigured ? "Integração em implementação: conecte sua conta para testar o envio." : "Exportação direta em implementação. Login ainda não configurado pelo mantenedor; use ZIP local.";
   $("redirect").textContent = state.redirect;
   if (!j) return;
   $("progress-title").textContent = `Sua coleta · ${j.conversation.title}`;
@@ -46,7 +46,7 @@ function bind(id, action) {
 $("destination").addEventListener("change", () => { $("drive-box").hidden = $("destination").value !== "drive"; });
 $("settings").addEventListener("submit", async e => {
   e.preventDefault(); $("start-button").disabled = true;
-  try { await command("start", { options: { start: $("start").value, end: $("end").value, media: $("media").checked, pseudonymize: $("pseudonymize").checked, destination: $("destination").value } }); }
+  try { await command("start", { options: { start: $("start").value, end: $("end").value, media: $("media").checked, workbook: $("workbook").checked, pseudonymize: $("pseudonymize").checked, destination: $("destination").value } }); }
   catch (e) { error(e.message); }
   finally { try { const result = await command("state"); render(result.state); } catch (e) { $("start-button").disabled = false; error(e.message + " Baixe o log de diagnóstico."); } }
 });

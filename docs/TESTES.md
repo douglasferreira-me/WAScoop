@@ -2,7 +2,7 @@
 
 ## Automatizado
 
-Execute `npm test`, `npm run build` e `npm run lint`. Os testes cobrem deduplicação, datas, CSV, pseudônimos, associação de arquivos, ZIP, persistência e uploads com respostas simuladas. O empacotamento inclui todas as dependências executadas no navegador; nenhum script remoto é carregado.
+Execute `npm test`, `npm run build` e `npm run lint`. Os testes cobrem deduplicação, datas, CSV/XLSX, filtros e tipos de célula, textos longos, pseudônimos, associação de arquivos, ZIP, persistência e uploads com respostas simuladas. O empacotamento inclui todas as dependências executadas no navegador; nenhum script remoto é carregado.
 
 `npm run test:firefox` executa a extensão em um perfil isolado com fixtures locais de grupo e canal. Defina `FIREFOX_BIN` e `GECKODRIVER_BIN` apontando para os binários oficiais da Mozilla. O teste altera **somente na cópia temporária** a origem da conversa e `saveAs=false` para evitar o diálogo de download. Exercita rolagem, mídia, pausa/retomada, mudança de conversa, ZIP real, encerramento parcial e recuperação do IndexedDB. Não comprova funcionamento numa sessão WhatsApp real nem valida OAuth Google. Seu resultado fica em `docs/firefox-fixture-result.json`.
 

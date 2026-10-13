@@ -1,5 +1,5 @@
 {
-  "extensionVersion": "0.2.0",
+  "extensionVersion": "0.3.0",
   "browser": "153.4.0",
   "fixture": "grupo e canal sintéticos locais; API WPP simulada; não WhatsApp real",
   "messages": 35,
@@ -22,6 +22,8 @@
     "associação MID no CSV/índice/arquivo",
     "diagnóstico antes e depois da coleta",
     "ZIP real",
+    "XLSX opcional com filtros e tipos numéricos",
+    "JSONs em .system",
     "pseudônimos",
     "canal",
     "encerramento parcial",

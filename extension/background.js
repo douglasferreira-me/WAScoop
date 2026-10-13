@@ -2,7 +2,7 @@ import { ApiMedia } from "./lib/api-media.js";
 import { DiagnosticLog, downloadDiagnostic, jobSummary } from "./lib/diagnostics.js";
 import { Store } from "./lib/store.js";
 import { Drive, AuthRequired } from "./lib/drive.js";
-import { csvBlob, reportFiles, zipBlob } from "./lib/export.js";
+import { csvBlob, xlsxBlob, reportFiles, zipBlob } from "./lib/export.js";
 const googlePermissions = { origins: ["https://accounts.google.com/*", "https://www.googleapis.com/*", "https://oauth2.googleapis.com/*"], data_collection: ["personalCommunications", "personallyIdentifyingInfo", "websiteContent", "authenticationInfo"] };
 async function assertGooglePermissions() {
   if (!await browser.permissions.contains(googlePermissions)) throw new AuthRequired("Autorize novamente o envio ao Google Drive pelo botão Conectar.");
@@ -174,7 +174,7 @@ async function exportLocal() {
   diagnostics.record("archive_preparing", jobSummary(job));
   exportBusy = true; job.phase = "Preparando ZIP"; await publish();
   try {
-    const blob = await zipBlob(store, job, n => { job.phase = `Preparando ZIP: ${n} mídias`; publish(); });
+    const blob = await zipBlob(store, job, n => { job.phase = `Preparando ZIP: ${n} mídias`; publish(); }, phase => { job.phase = phase; publish(); });
     const url = URL.createObjectURL(blob);
     let id;
     try { id = await browser.downloads.download({ url, filename: `Whatsapp-Scoop-${C.safeName(job.conversation.title)}-${job.startedAt.slice(0, 10)}.zip`, saveAs: true }); }
@@ -188,15 +188,19 @@ async function finishDrive() {
   exportBusy = true; job.phase = "Finalizando pasta no Drive"; await publish();
   try {
     for await (const m of store.records("media", job.key)) if (m.complete && !m.driveId) await uploadMedia(m);
+    if (!job.driveSystemFolder) { job.driveSystemFolder = (await drive.folder(".system", job.driveFolder)).id; await save(); }
     const files = await reportFiles(store, job);
-    for (const [name, blob] of [["mensagens.csv", await csvBlob(store, job)], ["indice_midias.json", files.index], ["relatorio_coleta.json", files.report]]) {
+    const exports = [["mensagens.csv", await csvBlob(store, job), job.driveFolder]];
+    if (job.options.workbook) exports.push(["mensagens.xlsx", await xlsxBlob(store, job, phase => { job.phase = phase; publish(); }), job.driveFolder]);
+    exports.push([".system/indice_midias.json", files.index, job.driveSystemFolder], [".system/relatorio_coleta.json", files.report, job.driveSystemFolder]);
+    for (const [name, blob, folder] of exports) {
       job.finalUploads ||= {};
       const old = job.finalUploads[name];
       if (old?.id) continue;
-      const result = await drive.upload(name, blob, job.driveFolder, () => {}, old?.session, async url => { job.finalUploads[name] = { session: url }; await save(); });
+      const result = await drive.upload(name.split("/").pop(), blob, folder, () => {}, old?.session, async url => { job.finalUploads[name] = { session: url }; await save(); });
       job.finalUploads[name] = { id: result.id }; await save();
     }
-    job.notice = "CSV, mídias e relatório enviados ao Drive.";
+    job.notice = `CSV${job.options.workbook ? ", XLSX" : ""}, mídias e arquivos técnicos enviados ao Drive.`;
   } catch (e) { diagnostics.record("export_failed", { operation: job.options.destination }, e); job.notice = "Exportação falhou. Tente novamente ou baixe o log de diagnóstico."; throw e; } finally { exportBusy = false; job.phase = "Coleta preservada"; await save(); }
 }
 async function finalize(reason) {
