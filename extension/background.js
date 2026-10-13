@@ -100,6 +100,17 @@ async function resume() {
 }
 async function processBatch(message) {
   if (!job || message.job !== job.key) throw new Error("Coleta inválida.");
+  if (job.conversation.type === "canal" && message.messages.some(m => !m.link_mensagem)) {
+    try {
+      await apiMedia.prepare(job.tabId);
+      const result = await apiMedia.execute(job.tabId, "links", { title: job.conversation.title, channelCode: job.conversation.channelCode, ids: message.messages.map(m => m.id) });
+      for (const m of message.messages) m.link_mensagem ||= result.links?.[m.id] || "";
+    } catch (e) {
+      diagnostics.record("message_links_unavailable", { operation: "session_api" }, e);
+      const note = "Links permanentes indisponíveis em parte da coleta; campos vazios não foram inferidos.";
+      if (!job.notes.includes(note)) job.notes.push(note);
+    }
+  }
   for (const m of message.messages) {
     const sort = m.data_hora || "9999-sem-data";
     const key = `${job.key}:${sort}:${m.id}`;

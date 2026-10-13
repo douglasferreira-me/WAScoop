@@ -20,7 +20,8 @@
     if (!title) return null;
     const channel = /channel|newsletter/.test(root.getAttribute("data-testid") || "") || !!root.querySelector('[data-testid*="newsletter"], [data-testid*="channel"], [data-icon*="newsletter"]') || /seguidores|followers|inscritos|subscribers/i.test(text(header));
     const avatar = header.querySelector("img")?.getAttribute("src") || "";
-    return { root, header, title, type: channel ? "canal" : "grupo", identity: `${channel ? "canal" : "grupo"}:${title}:${avatar}` };
+    const channelCode = Array.from(header.querySelectorAll("a[href]")).map(a => a.getAttribute("href").match(/^https:\/\/(?:www\.)?whatsapp\.com\/channel\/([A-Za-z0-9]{10,64})(?:[/?#]|$)/)?.[1]).find(Boolean) || "";
+    return { root, header, title, channelCode, type: channel ? "canal" : "grupo", identity: `${channel ? "canal" : "grupo"}:${title}:${avatar}` };
   }
   function rows(root) {
     const selectors = '[data-id], [data-testid="msg-container"], .message-in, .message-out, [data-testid="newsletter-message"]';
@@ -149,6 +150,8 @@
   class ChannelAdapter extends GroupAdapter {
     read(row, info) {
       const m = super.read(row, info);
+      const explicit = row.getAttribute("data-message-link") || row.getAttribute("data-permalink") || "";
+      m.link_mensagem = /^https:\/\/(?:www\.)?whatsapp\.com\/channel\/[A-Za-z0-9]{10,64}\/[1-9]\d*\/?$/.test(explicit) ? explicit : "";
       if (!m.data_original) {
         const d = row.querySelector("[data-timestamp]")?.getAttribute("data-timestamp") || row.getAttribute("data-timestamp");
         if (d && /^\d{10,13}$/.test(d)) { m.data_hora = new Date(+d * (d.length === 10 ? 1000 : 1)).toISOString(); m.data_original = d; }

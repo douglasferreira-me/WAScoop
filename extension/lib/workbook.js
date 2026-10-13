@@ -19,7 +19,7 @@
     ["encaminhada", "Encaminhada", 18], ["numero", "Número do remetente", 25], ["conversa", "Conversa", 32],
     ["tipo_conversa", "Tipo de conversa", 22], ["data_original", "Data observada na página", 32],
     ["interacoes_observadas_em", "Interações observadas em (UTC)", 32, "date"],
-    ["data_hora_iso", "Data/hora ISO original", 30]
+    ["data_hora_iso", "Data/hora ISO original", 30], ["link_mensagem", "Link permanente da mensagem", 60]
   ];
   const mediaColumns = [
     ["id", "Mídia ID", 23], ["messageId", "Mensagem ID", 28], ["path", "Arquivo de mídia", 48],

@@ -91,3 +91,10 @@ test('mídia real: ativação chega ao provedor interno com sequência de mouse'
   w.ScoopAdapters.activateMedia(target);assert.equal(opened,1);
   const diagnostics=JSON.stringify(w.ScoopAdapters.mediaStructure(w.document.querySelector('[data-id]'),target));assert.match(diagnostics,/mediaProvider/);assert.ok(!diagnostics.includes('web.whatsapp.com'));
 });
+test('link da própria mensagem é distinto de links citados no texto',()=>{
+ const link='https://whatsapp.com/channel/0029Vb8kT6E3AzNNDpBkN22J/201';
+ const w=page(`<div data-id="m" data-message-link="${link}"><span class="selectable-text">Fonte https://example.com</span></div><div data-id="n"><span class="selectable-text"><a href="${link}">Mensagem citada</a></span></div>`, '<span title="Canal">Canal</span><span>100 seguidores</span>');
+ const A=w.ScoopAdapters,info=A.conversation();
+ assert.equal(new A.ChannelAdapter().read(A.rows(info.root)[0],info).link_mensagem,link);
+ assert.equal(new A.ChannelAdapter().read(A.rows(info.root)[1],info).link_mensagem,'');
+});

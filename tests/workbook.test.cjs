@@ -29,7 +29,7 @@ function value(row, column) {
 
 test("XLSX mantém textos, datas, números e vínculos sem fórmulas ou identificação original", async () => {
   const { xlsxBlob, csvBlob } = await importFile("lib/export.js");
-  const m = { ...message("m1", '=HYPERLINK("https://example.com", "aspas")\nOlá, 🧪 & <pesquisa>'), numero: "+5511999999999", interacoes_total: 0, interacoes_precisao: "exata", links: ["https://example.com/?a=1&b=2"], midias_ids: ["MID-000001"], midias: ["midias/MID-000001.png"] };
+  const m = { ...message("m1", '=HYPERLINK("https://example.com", "aspas")\nOlá, 🧪 & <pesquisa>'), numero: "+5511999999999", link_mensagem: "https://whatsapp.com/channel/0029Vb8kT6E3AzNNDpBkN22J/201", interacoes_total: 0, interacoes_precisao: "exata", links: ["https://example.com/?a=1&b=2"], midias_ids: ["MID-000001"], midias: ["midias/MID-000001.png"] };
   const unknown = { ...message("m2", "Data e interações desconhecidas", ""), remetente: "Bia", interacoes_total: "", interacoes_precisao: "indisponivel" };
   const s = store([m, unknown], [{ complete: true, id: "MID-000001", messageId: "m1", path: "midias/MID-000001.png", mime: "image/png", size: 4, sha256: "abcd", source: "api_wa_js" }, { complete: false, id: "MID-000002" }]);
   const progress = [], archive = await read(await xlsxBlob(s, job(), phase => progress.push(phase)));
@@ -40,9 +40,10 @@ test("XLSX mantém textos, datas, números e vínculos sem fórmulas ou identifi
   assert.equal(sheet.querySelector("f"), null); assert.equal(value(records[1], "C"), "participante_0001"); assert.equal(value(records[1], "O"), "");
   assert.equal(value(records[2], "C"), "participante_0002"); assert.equal(value(records[2], "B"), ""); assert.equal(value(records[2], "G"), "");
   assert.equal(Number(value(records[1], "B")), Date.parse(m.data_hora) / 86400000 + 25569); assert.equal(value(records[1], "T"), m.data_hora);
+  assert.equal(value(records[1], "U"), m.link_mensagem);
   assert.equal(value(records[1], "G"), "0"); assert.equal(records[1].querySelector('c[r="G2"]').getAttribute("t"), null);
   assert.equal(value(records[1], "I"), m.links[0] + " | https://example.com"); assert.equal(value(records[1], "J"), "MID-000001"); assert.equal(value(records[1], "K"), "midias/MID-000001.png");
-  assert.equal(sheet.querySelector("autoFilter").getAttribute("ref"), "A1:T3"); assert.equal(sheet.querySelector("pane").getAttribute("state"), "frozen");
+  assert.equal(sheet.querySelector("autoFilter").getAttribute("ref"), "A1:U3"); assert.equal(sheet.querySelector("pane").getAttribute("state"), "frozen");
   const media = rows(archive.document("xl/worksheets/sheet3.xml"));
   assert.equal(media.length, 2); assert.equal(value(media[1], "A"), "MID-000001"); assert.equal(value(media[1], "B"), "m1"); assert.equal(Number(value(media[1], "E")), 4);
   const rel = archive.document("xl/worksheets/_rels/sheet3.xml.rels").querySelector("Relationship");
@@ -50,7 +51,7 @@ test("XLSX mantém textos, datas, números e vínculos sem fórmulas ou identifi
   const summary = rows(archive.document("xl/worksheets/sheet1.xml"));
   assert.equal(value(summary.find(r => value(r, "A") === "Mensagens na planilha"), "B"), "2");
   assert.equal(value(summary.find(r => value(r, "A") === "Estado"), "B"), "Parcial / interrompida");
-  const csv = await (await csvBlob(s, job())).text(); assert.match(csv, /participante_0001/); assert.match(csv, /MID-000001/);
+  const csv = await (await csvBlob(s, job())).text(); assert.match(csv, /participante_0001/); assert.match(csv, /MID-000001/); assert.ok(csv.includes(m.link_mensagem));
   assert.equal(progress.at(-1), "Planilha XLSX pronta");
 });
 
@@ -96,5 +97,5 @@ test("ZIP padrão não gera XLSX; JSONs vão para .system e exportação vazia p
   } finally { ScoopWorkbook.create = original; }
   const archive = await read(await ScoopWorkbook.create(store([]), job(), { message: m => m }));
   assert.equal(rows(archive.document("xl/worksheets/sheet2.xml")).length, 1);
-  assert.equal(archive.document("xl/worksheets/sheet2.xml").querySelector("autoFilter").getAttribute("ref"), "A1:T1");
+  assert.equal(archive.document("xl/worksheets/sheet2.xml").querySelector("autoFilter").getAttribute("ref"), "A1:U1");
 });

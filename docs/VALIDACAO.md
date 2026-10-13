@@ -56,3 +56,9 @@ Waterfox 153.4.0 em perfil descartável: opção XLSX desmarcada inicialmente; c
 Um leitor independente (openpyxl 3.1.5, somente leitura) abriu o XLSX de exemplo sintético e confirmou datas, contagens, filtros, congelamento, links de mídia, ausência de fórmulas e preservação de texto longo com emoji. Prévias das abas Resumo, Mensagens e Mídias foram renderizadas e inspecionadas. Lint desktop sem erros ou avisos.
 
 A exportação direta para o Google Drive continua em implementação e validação. A reorganização `.system/` e a opção XLSX também estão previstas nesse fluxo, mas login e upload reais continuam pendentes. Estes testes não comprovam compatibilidade com todas as variantes do WhatsApp nem grandes corpora em um computador de pesquisador.
+
+## Versão 0.3.1 — links permanentes das mensagens
+
+35 testes automatizados aprovados e lint desktop sem erros ou avisos. O CSV e o XLSX incluem `link_mensagem`, distinto dos links do conteúdo. A API usa código do canal e `serverId` confirmado, com verificação da conversa e unicidade do ID. IDs internos, mensagens ambíguas e metadados ausentes não geram URLs inferidas. Waterfox 153.4.0, perfil descartável: link permanente verificado no CSV de canal sintético por API simulada. A disponibilidade desses metadados em canais reais continua dependente da sessão.
+
+A contagem foi conferida nos arquivos locais apresentados pelo usuário: 117 registros no CSV e 117 mensagens no relatório. O arquivo tem 310 linhas de texto por causa de cabeçalho e quebras internas; 38 registros não têm texto/legenda. Isso confirma a correspondência nesses arquivos, mas a comparação com o número visto no painel depende da informação do usuário. O painel e o README explicam a diferença entre registros e linhas físicas.

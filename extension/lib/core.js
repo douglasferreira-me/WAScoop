@@ -1,7 +1,7 @@
 /* Shared pure functions; deliberately usable in Firefox and Node tests. */
 (function (root) {
   "use strict";
-  const columns = ["id", "conversa", "tipo_conversa", "data_hora", "data_original", "remetente", "numero", "texto", "legenda", "links", "tipo", "resposta_a", "encaminhada", "interacoes_total", "interacoes_precisao", "interacoes_observadas_em", "midias_ids", "midias", "status_midia"];
+  const columns = ["id", "conversa", "tipo_conversa", "data_hora", "data_original", "remetente", "numero", "texto", "legenda", "links", "tipo", "resposta_a", "encaminhada", "interacoes_total", "interacoes_precisao", "interacoes_observadas_em", "midias_ids", "midias", "status_midia", "link_mensagem"];
   function safeName(value) {
     return String(value || "conversa").normalize("NFKC").replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_").replace(/[. ]+$/g, "").slice(0, 100) || "conversa";
   }

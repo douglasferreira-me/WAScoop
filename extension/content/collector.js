@@ -206,7 +206,7 @@
       return { ok: true };
     }
     if (message.type === "inspect") {
-      const info = A.conversation(); return info ? { title: info.title, type: info.type, identity: info.identity } : null;
+      const info = A.conversation(); return info ? { title: info.title, type: info.type, identity: info.identity, channelCode: info.channelCode } : null;
     }
     if (message.type === "start") {
       if (session && !session.stopped) throw new Error("Já há uma coleta nesta aba.");

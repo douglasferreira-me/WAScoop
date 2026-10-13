@@ -12,7 +12,7 @@ export async function pageMediaAction(action, args) {
       let raw = ""; for (let i = 0; i < bytes.length; i += 8192) raw += String.fromCharCode(...bytes.subarray(i, i + 8192));
       return { ok: true, data: btoa(raw), size: bytes.length };
     }
-    if (action !== "begin") return fail("action", "Operação de mídia inválida.");
+    if (!["begin", "links"].includes(action)) return fail("action", "Operação de mídia inválida.");
     if (args.attachment > 0) return fail("album", "Anexo adicional requer controle próprio da mensagem.");
     const W = globalThis.WPP;
     const deadline = Date.now() + 15000;
@@ -24,6 +24,18 @@ export async function pageMediaAction(action, args) {
     const normalize = s => String(s).normalize("NFKC").replace(/[^\p{L}\p{N}]/gu, "").toLowerCase();
     if (!title || normalize(title) !== normalize(args.title)) return fail("chat_changed", "API e painel apontam para conversas diferentes. Atualize a conversa.");
     const models = chat.msgs?.getModelsArray?.() || chat.msgs?.models || [];
+    if (action === "links") {
+      const metadata = chat.newsletterMetadata || W.whatsapp?.NewsletterStore?.get?.(chat.id)?.newsletterMetadata;
+      const code = metadata?.inviteCode || metadata?.newsletterInviteLinkMetadataMixin?.inviteCode || args.channelCode;
+      const links = {};
+      if (!/^[A-Za-z0-9]{10,64}$/.test(code || "")) return { ok: true, links };
+      for (const id of (args.ids || []).slice(0, 100)) {
+        const matched = models.filter(m => m.id?.toString?.() === id || m.id?._serialized === id || m.id?.id === id);
+        const serverId = matched.length === 1 ? matched[0].serverId : null;
+        if (/^[1-9]\d*$/.test(String(serverId ?? "")) && Number.isSafeInteger(Number(serverId))) links[id] = `https://whatsapp.com/channel/${code}/${serverId}`;
+      }
+      return { ok: true, links };
+    }
     const matches = models.filter(m => m.id?.toString?.() === args.id || m.id?._serialized === args.id || m.id?.id === args.id);
     if (matches.length !== 1) return fail("message", "API não encontrou um identificador único para esta mensagem no histórico carregado.");
     const msg = matches[0];

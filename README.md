@@ -14,7 +14,7 @@ Produzido por **[douglasferreira](https://douglasferreira.me)**. A ferramenta or
 
 Este é o **resumo**; o passo a passo completo está logo abaixo. Você não precisa saber programar.
 
-1. Baixe e descompacte o [pacote de teste](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.3.0-beta/whatsapp-scoop-0.3.0-temporario.zip).
+1. Baixe e descompacte o [pacote de teste](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.3.1-beta/whatsapp-scoop-0.3.1-temporario.zip).
 2. No Firefox, abra `about:debugging` → **Este Firefox** → **Carregar extensão temporária** e selecione `manifest.json` na pasta descompactada.
 3. Abra o grupo ou canal no WhatsApp Web, abra o painel **Whatsapp Scoop** e clique em **Iniciar coleta**. Marque **Incluir mídias** se quiser os arquivos.
 4. Ao terminar, salve e descompacte o ZIP. Abra `mensagens.csv` como uma planilha e conserve os demais arquivos junto dela. Se marcar a opção XLSX, também terá uma planilha pronta para análise.
@@ -25,7 +25,7 @@ Este é o **resumo**; o passo a passo completo está logo abaixo. Você não pre
 
 Use **Firefox para computador, versão 140 ou posterior**. Não é necessário instalar Python ou outros programas de desenvolvimento.
 
-1. **Baixe o pacote.** Clique em [whatsapp-scoop-0.3.0-temporario.zip](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.3.0-beta/whatsapp-scoop-0.3.0-temporario.zip). Normalmente ele será salvo na pasta **Downloads**. Use esse arquivo, e não o pacote de código-fonte ou o arquivo `.xpi`.
+1. **Baixe o pacote.** Clique em [whatsapp-scoop-0.3.1-temporario.zip](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.3.1-beta/whatsapp-scoop-0.3.1-temporario.zip). Normalmente ele será salvo na pasta **Downloads**. Use esse arquivo, e não o pacote de código-fonte ou o arquivo `.xpi`.
 2. **Descompacte o arquivo.** ZIP é um arquivo que reúne uma pasta e seus conteúdos. No Windows, clique com o botão direito e escolha **Extrair tudo**. No macOS, dê dois cliques no ZIP. Guarde a pasta extraída: você precisará dela nas próximas instalações.
 3. **Abra a página de instalação.** No Firefox, clique na barra de endereço, no alto da janela. Digite `about:debugging` e pressione **Enter**.
 4. **Escolha este navegador.** Clique em **Este Firefox**, à esquerda. Depois clique em **Carregar extensão temporária…**. Se o Firefox estiver em inglês, os nomes são **This Firefox** e **Load Temporary Add-on…**.
@@ -63,11 +63,14 @@ Descompacte o ZIP da coleta como fez com o pacote de instalação. **Conserve a 
 
 **Se escolheu XLSX, abra `mensagens.xlsx` no Excel ou LibreOffice.** Na aba **Mensagens**, use as setas dos cabeçalhos para filtrar por remetente, tipo, data ou interações. As datas estão em UTC e as contagens são numéricas. O resumo registra a coleta e não muda ao filtrar. Campos muito longos ficam completos, em partes numeradas, na aba **Textos longos**, quando necessária.
 
+**Contagem:** cada mensagem corresponde a um registro do CSV. O cabeçalho não é uma mensagem, e um texto pode ocupar várias linhas dentro da mesma célula. Por isso, contar as linhas do arquivo em um editor de texto pode dar um total maior que o mostrado no painel.
+
 A pasta `.system` reúne os arquivos técnicos e pode ficar oculta no computador; as informações principais também estão na aba **Resumo**, se você escolheu XLSX. No Windows, ative **Exibir → Itens ocultos** no Explorador; no macOS, use **⌘ + Shift + .** no Finder.
 
 Para outros programas, abra `mensagens.csv` no Excel ou LibreOffice, ou importe no Google Planilhas. Se o conteúdo aparecer em uma única coluna ou com caracteres estranhos, escolha **Importar texto/CSV**, codificação **UTF-8** e separador **vírgula**.
 
 - **Mídias:** `midias_ids` identifica arquivos como `MID-000001`; `midias` informa o caminho, por exemplo `midias/MID-000001.png`. Vários arquivos aparecem na mesma ordem nas duas colunas, separados por ` | `.
+- **Link da mensagem:** `link_mensagem` guarda o endereço permanente de uma publicação do canal, quando disponível, para voltar à mensagem original. Não é o link de convite do canal. Sem código do canal ou identificador confirmado da publicação, fica vazio; grupos não recebem links inventados. Faça uma nova coleta para obter esse campo.
 - **Links:** a coluna `links` registra os endereços encontrados nas mensagens, sem abrir os sites. Imagens de prévias de links não substituem mídias enviadas diretamente.
 - **Interações:** `interacoes_total` registra o total de reações observado. `interacoes_precisao` indica se a contagem é exata, aproximada ou indisponível. Um campo vazio não significa zero. A contagem pode mudar depois da coleta.
 

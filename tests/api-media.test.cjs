@@ -20,3 +20,12 @@ test('API de canal usa cache original após download nativo sem MsgStore',async(
  global.WPP={isReady:true,whatsapp:{},chat:{getActiveChat:()=>({name:'Canal',msgs:{models:[model]}}),downloadMedia:async()=>{throw new Error('MsgStore ausente')}}};
  const meta=await pageMediaAction('begin',{token:'t',id:'ABC',title:'Canal',attachment:0});assert.equal(meta.ok,true);assert.equal(triggered,1);assert.equal(meta.mime,'video/mp4');await pageMediaAction('release',{token:'t'});
 });
+test('links permanentes usam código do canal e serverId confirmado, sem confundir ID interno',async()=>{
+ const {pageMediaAction}=await importFile('lib/api-media.js');
+ global.WPP={isReady:true,chat:{getActiveChat:()=>({name:'Canal',newsletterMetadata:{inviteCode:'0029Vb8kT6E3AzNNDpBkN22J'},msgs:{models:[{id:{id:'interno'},serverId:201},{id:{id:'sem-server'}},{id:{id:'duplicado'},serverId:202},{id:{id:'duplicado'},serverId:203}]}})}};
+ const r=await pageMediaAction('links',{title:'Canal',ids:['interno','sem-server','duplicado']});
+ assert.deepEqual(r.links,{interno:'https://whatsapp.com/channel/0029Vb8kT6E3AzNNDpBkN22J/201'});
+ assert.equal((await pageMediaAction('links',{title:'Outro',ids:['interno']})).code,'chat_changed');
+ global.WPP.chat.getActiveChat=()=>({name:'Canal',msgs:{models:[{id:{id:'201'},serverId:201}]}});
+ assert.deepEqual((await pageMediaAction('links',{title:'Canal',ids:['201']})).links,{});
+});
