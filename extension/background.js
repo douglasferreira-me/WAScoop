@@ -1,3 +1,4 @@
+import { DiagnosticLog, downloadDiagnostic, jobSummary } from "./lib/diagnostics.js";
 import { Store } from "./lib/store.js";
 import { Drive, AuthRequired } from "./lib/drive.js";
 import { csvBlob, reportFiles, zipBlob } from "./lib/export.js";
@@ -6,8 +7,10 @@ async function assertGooglePermissions() {
   if (!await browser.permissions.contains(googlePermissions)) throw new AuthRequired("Autorize novamente o envio ao Google Drive pelo botão Conectar.");
 }
 const C = globalThis.ScoopCore, store = new Store(), drive = new Drive({ authorize: assertGooglePermissions });
-const ready = store.open();
-let job = null, inspectCache = null, exportBusy = false;
+let job = null, inspectCache = null, exportBusy = false, storageError = null;
+const diagnostics = new DiagnosticLog({ storage: browser.storage.local, privateValues: () => [job?.conversation?.title, job?.conversation?.identity] });
+const diagnosticReady = diagnostics.load();
+const ready = store.open().catch(e => { storageError = e; diagnostics.record("storage_unavailable", { operation: "initialize" }, e); });
 const pendingMedia = new Map(), downloadUrls = new Map();
 const config = fetch(browser.runtime.getURL("config.json")).then(r => r.json());
 const now = () => new Date().toISOString();
@@ -30,7 +33,7 @@ async function collector(type, extra = {}) {
 }
 async function pause(reason) {
   if (!job) return;
-  job.status = "paused"; job.notice = reason;
+  job.status = "paused"; job.notice = reason; diagnostics.record("collection_paused", jobSummary(job), new Error(reason));
   try { await collector("pause"); } catch { /* Lost tab is already represented by pause. */ }
   await save();
 }
@@ -66,6 +69,7 @@ async function start(options) {
       if (options.media) job.driveMediaFolder = (await drive.folder("midias", folder.id)).id;
     } catch (e) { job.status = "interrupted"; job.finishedAt = now(); job.reason = "falha_preparacao_drive"; job.notice = e.message; await save(); throw e; }
   }
+  diagnostics.record("collection_started", jobSummary(job));
   await save();
   try { await collector("start", { job: key, options, startedAt: +new Date(job.startedAt) }); }
   catch (e) { await pause(e.message); throw e; }
@@ -76,6 +80,7 @@ async function uploadMedia(record) {
     const response = await drive.upload(record.path.split("/").pop(), record.blob, job.driveMediaFolder, () => {}, record.uploadSession, async url => { record.uploadSession = url; await store.put("media", record); });
     record.driveId = response.id; record.uploadError = null; record.uploadSession = null; await store.put("media", record);
   } catch (e) {
+    diagnostics.record("media_upload_failed", { operation: "drive_upload" }, e);
     record.uploadError = e.message; await store.put("media", record);
     if (["running", "paused", "stopping"].includes(job.status)) await pause(e.message);
     else { job.notice = e.message; await save(); }
@@ -88,6 +93,7 @@ async function resume() {
     if (!drive.connected()) throw new AuthRequired("Reconecte ao Google Drive.");
     for await (const record of store.records("media", job.key)) if (record.complete && !record.driveId) await uploadMedia(record);
   }
+  diagnostics.record("collection_resumed", jobSummary(job));
   await collector("resume"); job.status = "running"; job.notice = ""; await save();
 }
 async function processBatch(message) {
@@ -99,8 +105,9 @@ async function processBatch(message) {
     await store.put("messages", { key, job: job.key, message: m });
     job.count++;
     if (m.data_hora) { if (!job.oldest || m.data_hora < job.oldest) job.oldest = m.data_hora; if (!job.newest || m.data_hora > job.newest) job.newest = m.data_hora; }
-    if (m._mediaError) { job.mediaFailures++; job.failures.push({ mensagem_id: m.id, etapa: "midia", erro: m._mediaError }); }
+    if (m._mediaError) { diagnostics.record("media_capture_failed", { operation: "media" }, new Error(m._mediaError)); job.mediaFailures++; job.failures.push({ mensagem_id: m.id, etapa: "midia", erro: m._mediaError }); }
   }
+  diagnostics.record("batch_saved", { batchSize: message.messages.length, messages: job.count, mediaFailures: job.mediaFailures });
   job.unknownDates = message.unknownDates; job.fallbackIds ||= message.fallbackIds;
   await save(); return { ok: true, paused: job.status === "paused" };
 }
@@ -135,6 +142,7 @@ async function mediaEnd(m) {
 }
 async function exportLocal() {
   if (!job || exportBusy || ["running", "stopping"].includes(job.status)) throw new Error("Pause ou encerre a coleta antes de exportar.");
+  diagnostics.record("archive_preparing", jobSummary(job));
   exportBusy = true; job.phase = "Preparando ZIP"; await publish();
   try {
     const blob = await zipBlob(store, job, n => { job.phase = `Preparando ZIP: ${n} mídias`; publish(); });
@@ -142,8 +150,8 @@ async function exportLocal() {
     let id;
     try { id = await browser.downloads.download({ url, filename: `Whatsapp-Scoop-${C.safeName(job.conversation.title)}-${job.startedAt.slice(0, 10)}.zip`, saveAs: true }); }
     catch (e) { URL.revokeObjectURL(url); throw e; }
-    downloadUrls.set(id, url); job.notice = "ZIP enviado ao gerenciador de downloads do Firefox.";
-  } finally { exportBusy = false; job.phase = "Coleta preservada"; await save(); }
+    downloadUrls.set(id, { url, kind: "archive" }); diagnostics.record("archive_download_started", { downloadId: id, bytes: blob.size }); job.notice = "ZIP enviado ao gerenciador de downloads do Firefox.";
+  } catch (e) { diagnostics.record("export_failed", { operation: job.options.destination }, e); job.notice = "Exportação falhou. Tente novamente ou baixe o log de diagnóstico."; throw e; } finally { exportBusy = false; job.phase = "Coleta preservada"; await save(); }
 }
 async function finishDrive() {
   if (!job || exportBusy || ["running", "stopping"].includes(job.status)) throw new Error("Encerre a coleta antes de finalizar o Drive.");
@@ -160,7 +168,7 @@ async function finishDrive() {
       job.finalUploads[name] = { id: result.id }; await save();
     }
     job.notice = "CSV, mídias e relatório enviados ao Drive.";
-  } finally { exportBusy = false; job.phase = "Coleta preservada"; await save(); }
+  } catch (e) { diagnostics.record("export_failed", { operation: job.options.destination }, e); job.notice = "Exportação falhou. Tente novamente ou baixe o log de diagnóstico."; throw e; } finally { exportBusy = false; job.phase = "Coleta preservada"; await save(); }
 }
 async function finalize(reason) {
   job.finishedAt = now(); job.status = reason === "intervalo" || reason === "limite_observado" ? "finished" : "interrupted"; job.reason = reason;
@@ -178,17 +186,24 @@ browser.permissions.onRemoved.addListener(removed => {
   }
 });
 browser.downloads.onChanged.addListener(delta => {
-  if (delta.state && ["complete", "interrupted"].includes(delta.state.current)) {
-    const url = downloadUrls.get(delta.id); if (url) URL.revokeObjectURL(url); downloadUrls.delete(delta.id);
-    if (delta.state.current === "interrupted" && job) { job.notice = "Download interrompido. Use Exportar ZIP para tentar novamente."; save(); }
-  }
+  const tracked = downloadUrls.get(delta.id);
+  if (!tracked || !delta.state || !["complete", "interrupted"].includes(delta.state.current)) return;
+  URL.revokeObjectURL(tracked.url); downloadUrls.delete(delta.id);
+  diagnostics.record("download_" + delta.state.current, { operation: tracked.kind, downloadId: delta.id }, delta.error ? new Error(delta.error.current) : undefined);
+  if (delta.state.current === "interrupted" && tracked.kind === "archive" && job) { job.notice = "Download interrompido. Tente Exportar ZIP novamente ou baixe o log de diagnóstico."; save(); }
 });
 browser.tabs.onRemoved.addListener(id => { if (job?.tabId === id && ["running", "paused"].includes(job.status)) { pendingMedia.clear(); pause("A aba foi fechada. Exporte o material preservado e inicie outra coleta."); } });
 browser.tabs.onUpdated.addListener((id, change) => { if (job?.tabId === id && change.status === "loading" && ["running", "paused"].includes(job.status)) { pendingMedia.clear(); pause("A página foi recarregada. Exporte a coleta parcial antes de iniciar outra."); } });
 browser.runtime.onMessage.addListener(async (m, sender) => {
   if (m.target === "panel") return;
-  await ready;
   try {
+    if (m.type === "download-log" && sender.url?.startsWith(browser.runtime.getURL(""))) {
+      await diagnosticReady;
+      const [info, platform] = await Promise.allSettled([browser.runtime.getBrowserInfo(), browser.runtime.getPlatformInfo()]);
+      return await downloadDiagnostic({ log: diagnostics, job, environment: { extensionVersion: browser.runtime.getManifest().version, browser: info.status === "fulfilled" ? info.value : null, platform: platform.status === "fulfilled" ? platform.value : null }, downloads: browser.downloads, onStarted: async (id, url) => downloadUrls.set(id, { url, kind: "diagnostic" }) });
+    }
+    await ready;
+    if (storageError) throw storageError;
     if (m.source === "collector") {
       if (!job || sender.tab?.id !== job.tabId || m.job !== job.key) throw new Error("Origem de coleta inválida.");
       if (m.type === "batch") return await enqueue(job.key, () => processBatch(m));
@@ -236,9 +251,10 @@ browser.runtime.onMessage.addListener(async (m, sender) => {
       const jobs = await store.all("jobs"); job = jobs.sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0] || null; await publish();
     }
     return { ok: true };
-  } catch (e) { return { ok: false, error: e.message }; }
+  } catch (e) { diagnostics.record("command_failed", { operation: String(m.type).replace(/[^a-z-]/g, "").slice(0, 40) }, e); return { ok: false, error: e.message }; }
 });
 await ready;
-for (const old of await store.all("jobs")) {
+diagnostics.record("extension_started");
+for (const old of storageError ? [] : await store.all("jobs")) {
   if (["running", "paused", "stopping"].includes(old.status)) { old.status = "interrupted"; old.reason = "navegador_reiniciado"; old.finishedAt = now(); old.notice = "Sessão interrompida; é possível exportar os dados preservados."; await store.put("jobs", old); }
 }

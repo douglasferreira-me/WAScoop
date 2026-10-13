@@ -22,3 +22,5 @@ O manifesto declara nenhum envio obrigatório (`required: ["none"]`) e categoria
 **Apagar dados da coleta atual** remove seus registros locais após confirmação, sem apagar ZIPs ou arquivos no Drive. Coletas antigas podem permanecer no perfil até a remoção da extensão; não use o perfil do navegador como arquivo permanente. Instalações temporárias têm limitações de recuperação após reiniciar/desinstalar.
 
 O código de captura de mídias observa brevemente a criação de um Blob e o clique de download do visualizador Firefox. Ele é restaurado ao encerrar a tentativa. O corpo das mensagens e tokens não são expostos ao contexto da página por esse código.
+
+O diagnóstico guarda localmente até 500 eventos técnicos com contagens e erros sanitizados. O download é voluntário e não há telemetria ou compartilhamento automático.

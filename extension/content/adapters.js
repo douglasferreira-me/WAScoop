@@ -45,7 +45,7 @@
     const body = bodyNodes.map(bodyText).filter(Boolean).join("\n");
     const quoted = row.querySelector('[data-testid*="quoted"], [data-testid*="reply"]');
     const unquoted = selector => Array.from(row.querySelectorAll(selector)).find(el => !el.closest('[data-testid*="quoted"], [data-testid*="reply"]'));
-    const image = Array.from(row.querySelectorAll('img[src]')).find(el => !el.closest('[data-testid*="avatar"], [data-testid*="quoted"], [data-testid*="reply"], .selectable-text') && !/emoji|avatar/.test(el.className || ""));
+    const image = Array.from(row.querySelectorAll('img[src]')).find(el => !el.closest('[data-testid*="avatar"], [data-testid*="quoted"], [data-testid*="reply"], .selectable-text, a, [role="link"], [data-testid*="link-preview"]') && !/emoji|avatar/.test(el.className || ""));
     const video = unquoted("video"), audio = unquoted("audio");
     const documentNode = unquoted('[data-icon*="document"], [data-testid*="document"]');
     const sticker = unquoted('[data-testid*="sticker"]') || (image && /sticker|figurinha/i.test(image.alt));

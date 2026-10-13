@@ -26,3 +26,7 @@ O roteiro para completar esses testes está em [TESTES.md](TESTES.md). Nenhuma d
 ## Atualização visual 0.1.1
 
 A versão 0.1.1 acrescenta a logo original do balão pesquisador com lupa, ícones PNG em sete tamanhos e a marca no README do GitHub. O painel usa a nova fonte SVG. O comportamento de coleta permanece o da versão 0.1.0; a revisão visual, o empacotamento e a análise dos ícones/manifesto são realizados para a nova versão.
+
+## Versão 0.1.2 — diagnóstico e navegação
+
+19 testes automáticos aprovados, incluindo não clicar em imagem dentro de link, não classificar prévia de link como mídia, restauração dos interceptadores e recuperação do log quando o download falha. Validação do pacote Firefox sem erros ou avisos desktop. A correção restringe a abertura a controles de mídia reconhecidos; quando não reconhecidos, registra uma falha sem usar miniaturas. Não foi validada em uma sessão real Waterfox/WhatsApp; o relatório fornecido pelo usuário mostrou uma coleta pausada com 3 mensagens, 0 mídias e 1 falha.

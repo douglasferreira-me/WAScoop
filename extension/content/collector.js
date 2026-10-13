@@ -37,17 +37,20 @@
     URLObject.createObjectURL = hookedCreate;
     anchorProto.click = hookedClick;
     const downloadSelector = '[data-icon="download"], [data-icon="download-alt"], [data-testid="download"], [aria-label="Download"], [aria-label="Baixar"], [title="Download"], [title="Baixar"]';
-    const clickable = el => el?.closest('button,[role="button"],a') || el;
+    const clickable = el => {
+      if (!el || el.closest('a,[role="link"],.selectable-text,[data-testid*="link-preview"], [data-testid*="quoted"], [data-testid*="reply"]')) throw new Error("Mídia indisponível: links e prévias não são abertos pela coleta.");
+      return el.closest('button,[role="button"]') || el;
+    };
     try {
       let button = row.querySelector(downloadSelector);
       if (!button) {
-        const target = row.querySelector('[data-testid*="image"], [data-testid*="video"], [data-testid*="sticker"], img[src], video, [data-testid*="document"]');
+        const target = Array.from(row.querySelectorAll('[data-testid*="image"], [data-testid*="video"], [data-testid*="sticker"], video, [data-testid*="document"]')).find(el => !el.closest('a,[role="link"],.selectable-text,[data-testid*="link-preview"],[data-testid*="quoted"],[data-testid*="reply"]') && !/emoji|avatar/.test(el.className || ""));
         if (!target) throw new Error("Controle de mídia original não encontrado.");
         clickable(target).click(); viewerOpened = true;
         for (let n = 0; n < 20; n++) {
           await delay(150);
           const viewer = document.querySelector('[role="dialog"], [data-testid="media-viewer"], [data-animate-modal-popup="true"]');
-          button = viewer?.querySelector(downloadSelector) || Array.from(document.querySelectorAll(downloadSelector)).find(el => !A.conversation()?.root.contains(el));
+          button = viewer?.querySelector(downloadSelector);
           if (button) break;
         }
       }
@@ -65,7 +68,7 @@
         const viewer = document.querySelector('[role="dialog"], [data-testid="media-viewer"], [data-animate-modal-popup="true"]');
         const close = viewer?.querySelector('[data-icon="x"], [data-icon="back"], [aria-label="Close"], [aria-label="Fechar"]');
         if (close) clickable(close).click();
-        else document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", bubbles: true }));
+        // Never dismiss the conversation when a viewer was not actually opened.
       }
     }
   }

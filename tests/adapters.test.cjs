@@ -35,3 +35,20 @@ test("emoji e imagem citada não transformam mensagem textual em mídia", () => 
   const m = new A.GroupAdapter().read(A.rows(info.root)[0], info);
   assert.equal(m.tipo, "texto"); assert.match(m.texto, /Olá/); assert.match(m.texto, /🧪/);
 });
+test('prévia de link mantém mensagem textual e não solicita download de imagem', () => {
+  const w = page('<div data-id="link1"><a href="https://example.com"><img src="blob:https://web.whatsapp.com/preview"></a><span class="selectable-text">Leia https://example.com</span></div>');
+  const A = w.ScoopAdapters, info = A.conversation();
+  const m = new A.ChannelAdapter().read(A.rows(info.root)[0], info);
+  assert.equal(m.tipo, 'texto'); assert.match(m.texto, /Leia/);
+});
+test('coletor não clica em link de mídia e restaura interceptadores', async () => {
+  const w = page('<div data-id="unsafe"><a href="https://example.com"><img data-testid="image" src="blob:https://web.whatsapp.com/preview"></a></div>');
+  let clicks=0;w.document.querySelector('a').addEventListener('click',e=>{e.preventDefault();clicks++});
+  w.wrappedJSObject=w;w.exportFunction=fn=>fn;w.URL.createObjectURL=()=> 'blob:test';
+  const original=w.HTMLAnchorElement.prototype.click;
+  w.browser={runtime:{onMessage:{addListener:()=>{}},sendMessage:async()=>({ok:true})}};
+  const source=fs.readFileSync('extension/content/collector.js','utf8').replace('  async function pause(reason)', '  globalThis.testDownloadOriginal = downloadOriginal;\n  async function pause(reason)');
+  w.eval(source);
+  await assert.rejects(w.testDownloadOriginal(w.document.querySelector('[data-id]'),'imagem'),/Controle de mídia original não encontrado/);
+  assert.equal(clicks,0);assert.equal(w.HTMLAnchorElement.prototype.click,original);
+});
