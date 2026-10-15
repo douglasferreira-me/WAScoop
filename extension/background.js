@@ -291,7 +291,7 @@ async function finishDrive() {
     if (!job.driveSystemFolder) { job.driveSystemFolder = (await drive.folder(".system", job.driveFolder)).id; await save(); }
     const files = await reportFiles(store, job);
     const exports = [["mensagens.csv", await csvBlob(store, job), job.driveFolder]];
-    if (job.options.workbook) exports.push(["mensagens.xlsx", await xlsxBlob(store, job, phase => { job.phase = phase; publish(); }), job.driveFolder]);
+    if (job.options.workbook) exports.push(["workbook.xlsx", await xlsxBlob(store, job, phase => { job.phase = phase; publish(); }), job.driveFolder]);
     exports.push([".system/indice_midias.json", files.index, job.driveSystemFolder], [".system/relatorio_coleta.json", files.report, job.driveSystemFolder]);
     for (const [name, blob, folder] of exports) {
       job.finalUploads ||= {};

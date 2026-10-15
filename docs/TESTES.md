@@ -46,6 +46,10 @@ SCOOP_DRIVE_ONLY=1 FIREFOX_BIN=/caminho/para/firefox GECKODRIVER_BIN=/caminho/pa
 
 Confere o Client ID incluído em instalação nova, substituição persistente para forks, restauração pelo painel e rejeição de ID inválido. Reproduz o erro de receiver de `Window.fetch`, confere o cliente corrigido com fetch nativo e exercita validação OAuth, pasta, upload e atualização com endpoints Google simulados num servidor local. A fixture roda como módulo real na página da extensão, pois o sandbox de scripts do WebDriver tem contexto global diferente. Nenhuma credencial real é usada ou enviada ao Google. O resultado fica em `firefox-drive-result.json`; essa fixture não é incluída no pacote distribuído.
 
+## Compatibilidade das abas XLSX
+
+Na exportação de histórico com workbook marcado, confirme `workbook.xlsx` no ZIP, a mesma quantidade de mensagens do CSV e os MIDs na aba Mídias. Abra todas as abas no LibreOffice ou Excel e confira uma amostra. Os testes do escritor inspecionam também os cabeçalhos ZIP locais, CRC/tamanhos conhecidos e dimensões das abas para evitar depender apenas de um descompactador tolerante. Para conferência independente, um leitor instalado pode converter uma fixture sintética para ODS; compare conteúdo e contagens. O registro da versão 0.4.3 fica em `workbook-reader-result.json`.
+
 ## Estado de validação
 
 Resultados desta implementação serão registrados em `docs/VALIDACAO.md`. Testes sintéticos e lint não substituem validação em uma conta WhatsApp real. O Drive não é validado ponta a ponta sem Client ID e conta Google autorizada.

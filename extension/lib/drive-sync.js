@@ -47,7 +47,7 @@ export class DriveSync {
     const { revision, files } = await this.snapshot(async () => {
       const revision = job.revision || 0, report = await reportFiles(this.store, job);
       const files = [["mensagens.csv", await csvBlob(this.store, job), job.driveFolder], ["indice_midias.json", report.index, job.driveSystemFolder], ["relatorio_coleta.json", report.report, job.driveSystemFolder]];
-      if (final && job.options.workbook) files.push(["mensagens.xlsx", await xlsxBlob(this.store, job), job.driveFolder]);
+      if (final && job.options.workbook) files.push(["workbook.xlsx", await xlsxBlob(this.store, job), job.driveFolder]);
       return { revision, files };
     });
     for (const [name, blob, folder] of files) await this.file(job, name, blob, folder, revision);

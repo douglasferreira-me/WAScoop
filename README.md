@@ -14,7 +14,7 @@ Produzido por **[douglasferreira](https://douglasferreira.me)**. A ferramenta or
 
 Este é o **resumo**; o passo a passo completo está logo abaixo. Você não precisa saber programar.
 
-1. Baixe e descompacte o [pacote de teste](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.4.2-beta/whatsapp-scoop-0.4.2-temporario.zip).
+1. Baixe e descompacte o [pacote de teste](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.4.3-beta/whatsapp-scoop-0.4.3-temporario.zip).
 2. No Firefox, abra `about:debugging` → **Este Firefox** → **Carregar extensão temporária** e selecione `manifest.json` na pasta descompactada.
 3. Abra o grupo ou canal no WhatsApp Web, abra o painel **Whatsapp Scoop** e clique em **Iniciar coleta**. Marque **Incluir mídias** se quiser os arquivos.
 4. Ao terminar, salve e descompacte o ZIP. Abra `mensagens.csv` como uma planilha e conserve os demais arquivos junto dela. Se marcar a opção XLSX, também terá uma planilha pronta para análise.
@@ -25,7 +25,7 @@ Este é o **resumo**; o passo a passo completo está logo abaixo. Você não pre
 
 Use **Firefox para computador, versão 140 ou posterior**. Não é necessário instalar Python ou outros programas de desenvolvimento.
 
-1. **Baixe o pacote.** Clique em [whatsapp-scoop-0.4.2-temporario.zip](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.4.2-beta/whatsapp-scoop-0.4.2-temporario.zip). Normalmente ele será salvo na pasta **Downloads**. Use esse arquivo, e não o pacote de código-fonte ou o arquivo `.xpi`.
+1. **Baixe o pacote.** Clique em [whatsapp-scoop-0.4.3-temporario.zip](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.4.3-beta/whatsapp-scoop-0.4.3-temporario.zip). Normalmente ele será salvo na pasta **Downloads**. Use esse arquivo, e não o pacote de código-fonte ou o arquivo `.xpi`.
 2. **Descompacte o arquivo.** ZIP é um arquivo que reúne uma pasta e seus conteúdos. No Windows, clique com o botão direito e escolha **Extrair tudo**. No macOS, dê dois cliques no ZIP. Guarde a pasta extraída: você precisará dela nas próximas instalações.
 3. **Abra a página de instalação.** No Firefox, clique na barra de endereço, no alto da janela. Digite `about:debugging` e pressione **Enter**.
 4. **Escolha este navegador.** Clique em **Este Firefox**, à esquerda. Depois clique em **Carregar extensão temporária…**. Se o Firefox estiver em inglês, os nomes são **This Firefox** e **Load Temporary Add-on…**.
@@ -41,7 +41,7 @@ Essa instalação de teste desaparece quando o Firefox é reiniciado. Para reins
 3. **Abra o painel.** Clique no ícone **Whatsapp Scoop** na barra do Firefox. Se não aparecer, procure-o no botão **Extensões**, com o símbolo de uma peça de quebra-cabeça. No painel, clique em **Atualizar** e confira o nome da conversa.
 4. **Escolha o período.** Preencha as datas inicial e final se precisar de um recorte. Deixe ambas vazias para buscar todo o histórico acessível.
 5. **Escolha as mídias.** Marque **Incluir mídias** para baixar fotos, vídeos, áudios, documentos e figurinhas disponíveis. Deixe desmarcado para coletar somente as mensagens e seus dados. Mídias aumentam o tempo e o espaço necessário.
-6. **Escolha a planilha.** Marque **Incluir planilha de análise (XLSX)** se quiser resumo, filtros e melhor visualização. É opcional e vem desmarcada: **pode aumentar o tempo de exportação**, especialmente em coletas grandes. O CSV sempre será incluído.
+6. **Escolha a planilha.** Marque **Incluir workbook de análise (XLSX)** se quiser resumo, filtros e melhor visualização. É opcional e vem desmarcada: **pode aumentar o tempo de exportação**, especialmente em coletas grandes. O CSV sempre será incluído.
 7. **Escolha a identificação.** A opção **Usar pseudônimos para remetentes** substitui nomes e números nos campos de identificação. Ela não remove informações pessoais presentes nos textos ou nas imagens.
 8. **Inicie.** Mantenha o destino **Baixar um ZIP no computador** e clique em **Iniciar coleta**. Deixe a aba aberta e evite navegar na conversa enquanto a ferramenta trabalha.
 9. **Acompanhe.** O painel mostra a etapa atual, quantas mensagens foram coletadas, o período alcançado e os resultados das mídias. Como o tamanho total do histórico é desconhecido, não há uma porcentagem de conclusão.
@@ -55,13 +55,13 @@ Descompacte o ZIP da coleta como fez com o pacote de instalação. **Conserve a 
 
 | Conteúdo | Como usar |
 | --- | --- |
-| `mensagens.xlsx` | Opcional: incluída quando você marca **Incluir planilha de análise (XLSX)**. Pronta para leitura e análise, com abas **Resumo**, **Mensagens** e **Mídias**, filtros, cabeçalhos fixos e linhas alternadas. |
+| `workbook.xlsx` | Opcional: incluída quando você marca **Incluir workbook de análise (XLSX)**. Pronta para leitura e análise, com abas **Resumo**, **Mensagens** e **Mídias**, filtros, cabeçalhos fixos e linhas alternadas. |
 | `mensagens.csv` | Os mesmos dados das mensagens em formato simples, para importar em programas de análise. |
 | `midias/` | Mídias recuperadas, quando a opção foi marcada. |
 | `.system/indice_midias.json` | Lista que associa cada arquivo à sua mensagem e registra formato, tamanho e hash para conferência. |
 | `.system/relatorio_coleta.json` | Registro da versão, período, quantidades, falhas e interrupções. Guarde-o para documentar a metodologia. |
 
-**Se escolheu XLSX, abra `mensagens.xlsx` no Excel ou LibreOffice.** Na aba **Mensagens**, use as setas dos cabeçalhos para filtrar por remetente, tipo, data ou interações. As datas estão em UTC e as contagens são numéricas. O resumo registra a coleta e não muda ao filtrar. Campos muito longos ficam completos, em partes numeradas, na aba **Textos longos**, quando necessária.
+**Se escolheu XLSX, abra `workbook.xlsx` no Excel ou LibreOffice.** Na aba **Mensagens**, use as setas dos cabeçalhos para filtrar por remetente, tipo, data ou interações. As datas estão em UTC e as contagens são numéricas. O resumo registra a coleta e não muda ao filtrar. Campos muito longos ficam completos, em partes numeradas, na aba **Textos longos**, quando necessária.
 
 A extensão tenta recuperar datas, textos e legendas pela sessão do WhatsApp quando não aparecem na interface. Se data ou texto continuarem indisponíveis após tentativas automáticas, a coleta segue e marca a mensagem como **incompleta** em `status_captura`; `campos_ausentes` informa o que faltou. O painel e o relatório mostram essas pendências. A ferramenta tenta recuperá-las novamente sem duplicar os registros e não apresenta a coleta como livre de pendências. Mídias sem legenda continuam com texto vazio; contêineres sem conteúdo reconhecível não entram na contagem e são registrados no relatório. Mensagens sem data reconhecida ficam ao final do CSV.
 

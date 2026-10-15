@@ -161,9 +161,9 @@ async function main() {
     const entries = await reader.getEntries();
     const csv = await entries.find(e => e.filename === "mensagens.csv").getData(new zip.TextWriter());
     assert.match(csv, /participante_0001/); assert.match(csv, /https:\/\/example.com\/message\/26\?a=1&b=2/); assert.match(csv, /MID-000001/); assert.match(csv, /"3405","exata"/); assert.doesNotMatch(csv, /"Ana"/);
-    assert.ok(entries.some(e => e.filename === "mensagens.xlsx"));
+    assert.ok(entries.some(e => e.filename === "workbook.xlsx"));
     assert.ok(!entries.some(e => e.filename === "relatorio_coleta.json" || e.filename === "indice_midias.json"));
-    const xlsx = new zip.ZipReader(new zip.Uint8ArrayReader(await entries.find(e => e.filename === "mensagens.xlsx").getData(new zip.Uint8ArrayWriter())));
+    const xlsx = new zip.ZipReader(new zip.Uint8ArrayReader(await entries.find(e => e.filename === "workbook.xlsx").getData(new zip.Uint8ArrayWriter())));
     const workbookEntries = await xlsx.getEntries();
     const sheet = await workbookEntries.find(e => e.filename === "xl/worksheets/sheet2.xml").getData(new zip.TextWriter());
     assert.match(sheet, /participante_0001/); assert.match(sheet, /MID-000001/); assert.match(sheet, /<v>3405<\/v>/); assert.match(sheet, /<autoFilter /); assert.doesNotMatch(sheet, /<f[ >]/);
@@ -192,7 +192,7 @@ async function main() {
     const partialArchive = archives.find(name => name !== archives.find(name => name.includes("Grupo")));
     const partialReader = new zip.ZipReader(new zip.Uint8ArrayReader(await fs.readFile(path.join(downloads, partialArchive))));
     const partialEntries = await partialReader.getEntries();
-    assert.ok(partialEntries.some(e => e.filename === "mensagens.xlsx"));
+    assert.ok(partialEntries.some(e => e.filename === "workbook.xlsx"));
     const partialReport = JSON.parse(await partialEntries.find(e => e.filename === ".system/relatorio_coleta.json").getData(new zip.TextWriter()));
     assert.equal(partialReport.motivo_termino, "interrompida_pelo_usuario");
     assert.equal(partialReport.mensagens, partial.job.count);
@@ -213,7 +213,7 @@ async function main() {
     assert.equal(archives.length,3);
     const resumedArchive=archives.find(name=>!previousArchives.has(name));
     const resumedReader=new zip.ZipReader(new zip.Uint8ArrayReader(await fs.readFile(path.join(downloads,resumedArchive))));
-    const resumedEntries=await resumedReader.getEntries();assert.ok(!resumedEntries.some(e=>e.filename==='mensagens.xlsx'));
+    const resumedEntries=await resumedReader.getEntries();assert.ok(!resumedEntries.some(e=>e.filename==='workbook.xlsx'));
     const pendingCsv=await resumedEntries.find(e=>e.filename==='mensagens.csv').getData(new zip.TextWriter());
     assert.match(pendingCsv,/"incompleta","data_hora \| texto"/);
     const pendingReport=JSON.parse(await resumedEntries.find(e=>e.filename==='.system/relatorio_coleta.json').getData(new zip.TextWriter()));

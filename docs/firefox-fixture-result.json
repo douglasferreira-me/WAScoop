@@ -1,5 +1,5 @@
 {
-  "extensionVersion": "0.4.0",
+  "extensionVersion": "0.4.3",
   "browser": "153.5.0",
   "fixture": "grupo e canal sintéticos locais; API WPP simulada; não WhatsApp real",
   "messages": 35,

@@ -44,7 +44,7 @@ export async function reportFiles(store, job) {
     datas_desconhecidas_excluidas_pelo_filtro: job.unknownDates || 0,
     identificadores_inferidos: !!job.fallbackIds,
     registros_vazios_nao_contados: job.emptyRecords || 0,
-    formatos: { csv: "mensagens.csv", xlsx: job.options.workbook ? "mensagens.xlsx" : null, indice_midias: ".system/indice_midias.json", relatorio: ".system/relatorio_coleta.json" },
+    formatos: { csv: "mensagens.csv", xlsx: job.options.workbook ? "workbook.xlsx" : null, indice_midias: ".system/indice_midias.json", relatorio: ".system/relatorio_coleta.json" },
     observacoes: [...(job.notes || []), "Datas interpretadas conforme idioma da interface e fuso do navegador.", "Campos ausentes não foram inventados.", "Áudio/vídeo com origem blob_reproducao preservam os bytes acessíveis no navegador; compare com o download manual para avaliar eventual transformação pelo WhatsApp.", "CSV aplica apóstrofo inicial a células que poderiam ser interpretadas como fórmulas; remova-o para recuperar o valor original.", "XLSX mantém textos como texto, datas em UTC e contagens numéricas. Campos acima de 32.767 caracteres ficam completos em partes na aba Textos longos. O resumo é um retrato da exportação e não muda ao filtrar."],
     falhas: job.failures || [], arquivos: index,
     citacao: `douglasferreira. Whatsapp Scoop, versão ${browser.runtime.getManifest().version}. https://github.com/douglasferreira-me/WAScoop. Coleta em ${job.startedAt}.`
@@ -58,7 +58,7 @@ export async function zipBlob(store, job, progress = () => {}, workbookProgress 
   const add = (name, blob) => writer.add(name, new zip.BlobReader(blob), { level: 0, lastModDate: timestamp });
   try {
     await writer.add("mensagens.csv", csvStream(store, job), { level: 0, lastModDate: timestamp });
-    if (job.options.workbook) await add("mensagens.xlsx", await xlsxBlob(store, job, workbookProgress));
+    if (job.options.workbook) await add("workbook.xlsx", await xlsxBlob(store, job, workbookProgress));
     let n = 0, remote = 0;
     for await (const row of store.records("media", job.key)) {
       if (!row.complete) continue;

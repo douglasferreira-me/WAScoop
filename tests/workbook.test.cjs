@@ -19,7 +19,7 @@ async function read(blob) {
   };
   // Parse every package XML, not just the visible sheet.
   for (const name of files.keys()) if (name.endsWith(".xml") || name.endsWith(".rels")) document(name);
-  return { files, document };
+  return { files, document, blob };
 }
 function rows(doc) { return [...doc.querySelectorAll("sheetData > row")]; }
 function value(row, column) {
@@ -93,9 +93,32 @@ test("ZIP padrão não gera XLSX; JSONs vão para .system e exportação vazia p
     const report = JSON.parse(await entries.find(e => e.filename.endsWith("relatorio_coleta.json")).getData(new zip.TextWriter()));
     assert.equal(report.formatos.xlsx, null); await reader.close();
     const legacy = new zip.ZipReader(new zip.BlobReader(await zipBlob(store([]), job({ workbook: undefined }))));
-    assert.ok(!(await legacy.getEntries()).some(e => e.filename === "mensagens.xlsx")); await legacy.close();
+    assert.ok(!(await legacy.getEntries()).some(e => e.filename === "workbook.xlsx")); await legacy.close();
   } finally { ScoopWorkbook.create = original; }
   const archive = await read(await ScoopWorkbook.create(store([]), job(), { message: m => m }));
   assert.equal(rows(archive.document("xl/worksheets/sheet2.xml")).length, 1);
   assert.equal(archive.document("xl/worksheets/sheet2.xml").querySelector("autoFilter").getAttribute("ref"), "A1:W1");
+});
+
+test("workbook usa ZIP convencional com tamanhos conhecidos e dimensões corretas em todas as abas", async () => {
+  const { xlsxBlob } = await importFile("lib/export.js");
+  const source = [message("m1", "Texto 🧪"), message("m2", "Outro texto")];
+  const archive = await read(await xlsxBlob(store(source, [{complete:true,id:"MID-000001",messageId:"m1",path:"midias/MID-000001.png",size:4}]), job()));
+  const bytes = new Uint8Array(await archive.blob.arrayBuffer()), data = new DataView(bytes.buffer);
+  let offset = 0, entries = 0;
+  while (data.getUint32(offset, true) === 0x04034b50) {
+    assert.ok(data.getUint16(offset + 4, true) <= 20, "Uma aba não deve exigir ZIP64");
+    assert.equal(data.getUint16(offset + 6, true) & 8, 0, "Cabeçalho deve conter os tamanhos, sem data descriptor");
+    const compressed = data.getUint32(offset + 18, true), uncompressed = data.getUint32(offset + 22, true);
+    assert.ok(compressed > 0 && compressed < 0xffffffff); assert.ok(uncompressed > 0 && uncompressed < 0xffffffff);
+    const nameLength = data.getUint16(offset + 26, true), extraLength = data.getUint16(offset + 28, true);
+    for(let extra = offset + 30 + nameLength; extra < offset + 30 + nameLength + extraLength;) {
+      assert.notEqual(data.getUint16(extra, true), 1, "ZIP64 extra field não deve ser emitido"); extra += 4 + data.getUint16(extra + 2, true);
+    }
+    offset += 30 + nameLength + extraLength + compressed; entries++;
+  }
+  assert.equal(entries, archive.files.size); assert.equal(data.getUint32(offset, true), 0x02014b50);
+  assert.equal(archive.document("xl/worksheets/sheet2.xml").querySelector("dimension").getAttribute("ref"), "A1:W3");
+  assert.equal(archive.document("xl/worksheets/sheet3.xml").querySelector("dimension").getAttribute("ref"), "A1:J2");
+  assert.equal(archive.document("xl/worksheets/sheet1.xml").querySelector("dimension").getAttribute("ref"), "A1:B" + rows(archive.document("xl/worksheets/sheet1.xml")).length);
 });

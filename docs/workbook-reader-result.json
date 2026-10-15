@@ -1,0 +1,43 @@
+{
+  "extensionVersion": "0.4.3",
+  "reader": "LibreOffice 26.8.1.1",
+  "fixture": "dados sintéticos locais; 3 mensagens e 1 mídia",
+  "results": {
+    "before": {
+      "Resumo": {
+        "text_cells": 65,
+        "fixture_messages": 0,
+        "fixture_media_ids": 0
+      },
+      "Mensagens": {
+        "text_cells": 38,
+        "fixture_messages": 3,
+        "fixture_media_ids": 0
+      },
+      "Mídias": {
+        "text_cells": 15,
+        "fixture_messages": 0,
+        "fixture_media_ids": 1
+      }
+    },
+    "after": {
+      "Resumo": {
+        "text_cells": 65,
+        "fixture_messages": 0,
+        "fixture_media_ids": 0
+      },
+      "Mensagens": {
+        "text_cells": 38,
+        "fixture_messages": 3,
+        "fixture_media_ids": 0
+      },
+      "Mídias": {
+        "text_cells": 15,
+        "fixture_messages": 0,
+        "fixture_media_ids": 1
+      }
+    }
+  },
+  "passed": true,
+  "limitations": "O sintoma de abas vazias não foi reproduzido nesta versão do LibreOffice. Conferida compatibilidade do novo empacotamento ZIP convencional. Importação no Google Planilhas ainda não foi validada."
+}

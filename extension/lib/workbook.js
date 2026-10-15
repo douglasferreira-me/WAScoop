@@ -117,16 +117,16 @@
     </cellXfs>
     <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
   </styleSheet>`;
-  function sheetStart(columns, freeze = true) {
+  function sheetStart(columns, freeze = true, rowCount = 1) {
     const pane = freeze ? '<pane xSplit="2" ySplit="1" topLeftCell="C2" activePane="bottomRight" state="frozen"/><selection pane="bottomRight" activeCell="C2" sqref="C2"/>' : '<selection activeCell="A1" sqref="A1"/>';
-    return XML + `<worksheet xmlns="${NS}" xmlns:r="${REL}"><sheetViews><sheetView showGridLines="0" workbookViewId="0">${pane}</sheetView></sheetViews><sheetFormatPr defaultRowHeight="20"/><cols>` +
+    return XML + `<worksheet xmlns="${NS}" xmlns:r="${REL}"><dimension ref="A1:${columnName(columns.length - 1)}${rowCount}"/><sheetViews><sheetView showGridLines="0" workbookViewId="0">${pane}</sheetView></sheetViews><sheetFormatPr defaultRowHeight="20"/><cols>` +
       columns.map((c, i) => `<col min="${i + 1}" max="${i + 1}" width="${c[2]}" customWidth="1"/>`).join("") + '</cols><sheetData>';
   }
   async function create(store, job, options) {
     const { message, progress = () => {}, maxRows = MAX_ROWS } = options;
     if (!Number.isSafeInteger(maxRows) || maxRows < 1 || maxRows > MAX_ROWS) throw new Error("Limite de linhas XLSX inválido.");
     zip.configure({ useWebWorkers: false, useCompressionStream: false });
-    const writer = new zip.ZipWriter(new zip.BlobWriter(MIME)), sheets = [];
+    const writer = new zip.ZipWriter(new zip.BlobWriter(MIME), { zip64: false, bufferedWrite: true, dataDescriptor: false }), sheets = [];
     const timestamp = new Date(job.startedAt), stats = { messages: 0, media: 0, longFields: 0, incomplete: 0, datesUnknown: 0, types: new Map() };
     const add = (path, xml) => writer.add(path, new zip.TextReader(xml), { level: 6, lastModDate: timestamp });
     async function *messages() {
@@ -152,10 +152,9 @@
         do {
           const descriptor = { name: base + (++part > 1 ? ` ${part}` : ""), id: sheets.length + 1 }, links = [];
           sheets.push(descriptor);
+          let count = 0;
           async function *xml() {
-            yield sheetStart(columns);
             yield '<row r="1" ht="38" customHeight="1">' + columns.map((c, i) => cell(columnName(i) + "1", c[1], "text", false, 1)).join("") + '</row>';
-            let count = 0;
             while (!next.done && count < maxRows) {
               const record = next.value, row = ++count + 1, alternate = count % 2 === 0;
               onRecord?.(record);
@@ -175,7 +174,13 @@
             if (links.length) yield '<hyperlinks>' + links.map((link, i) => `<hyperlink ref="${link.ref}" r:id="rId${i + 1}" tooltip="Abra a mídia no destino indicado. Caminhos locais exigem o ZIP extraído."/>`).join("") + '</hyperlinks>';
             yield '<pageMargins left="0.3" right="0.3" top="0.5" bottom="0.5" header="0.2" footer="0.2"/></worksheet>';
           }
-          await writer.add(`xl/worksheets/sheet${descriptor.id}.xml`, stream(xml()), { level: 6, lastModDate: timestamp });
+          // A raw stream has unknown size, making zip.js emit ZIP64 local headers.
+          // Strict spreadsheet importers may skip these sheets but read the TextReader
+          // overview. Spool one worksheet into a browser-managed Blob, with its exact
+          // range and size, before writing a conventional ZIP entry with full headers.
+          const body = await new Response(stream(xml())).blob();
+          const worksheet = new Blob([sheetStart(columns, true, count + 1), body], { type: "application/xml" });
+          await writer.add(`xl/worksheets/sheet${descriptor.id}.xml`, new zip.BlobReader(worksheet), { level: 6, lastModDate: timestamp });
           if (links.length) await add(`xl/worksheets/_rels/sheet${descriptor.id}.xml.rels`, XML + `<Relationships xmlns="${PKG_REL}">` + links.map((link, i) => `<Relationship Id="rId${i + 1}" Type="${REL}/hyperlink" Target="${escapeXML(link.target)}" TargetMode="External"/>`).join("") + '</Relationships>');
         } while (!next.done);
       } finally { await iterator.return?.(); }
@@ -220,7 +225,7 @@
         ["Mensagens por tipo", "Quantidade coletada"]
       ];
       for (const [type, count] of [...stats.types].sort(([a], [b]) => a.localeCompare(b))) overview.push([visibleText(type), count, "number"]);
-      let summary = sheetStart([["", "", 36], ["", "", 104]], false);
+      let summary = sheetStart([["", "", 36], ["", "", 104]], false, overview.length);
       for (let i = 0; i < overview.length; i++) {
         const [label, value, kind] = overview[i], row = i + 1;
         summary += `<row r="${row}" ht="${i === 0 ? 34 : kind ? 25 : 42}" customHeight="1">` + cell("A" + row, label, "text", false, i === 0 ? 9 : 8) + cell("B" + row, value, kind, false, i === 0 ? 9 : kind === "number" ? 10 : kind === "date" ? 14 : 13) + '</row>';
