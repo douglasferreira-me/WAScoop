@@ -1,5 +1,7 @@
 > **Versão beta (de teste).** Estou providenciando uma versão assinada para publicar na loja de extensões do Firefox. Por enquanto, a instalação é temporária: siga o guia abaixo. **Google Drive experimental, em fase de teste e sem liberação pública. O aplicativo Google já vem configurado; basta conectar uma conta cadastrada como usuário de teste. Para uso geral, utilize o ZIP local.**
 
+**Português** · [English](README.en.md)
+
 <p align="center">
   <img src="docs/branding/logo.png" width="128" alt="Whatsapp Scoop: balão de conversa sorridente com óculos de pesquisador">
 </p>
@@ -8,7 +10,7 @@
 
 Uma ferramenta para **facilitar o trabalho de pesquisadores de comunicação social na internet**. Ela reúne mensagens de um grupo ou canal do WhatsApp em uma planilha e, se você quiser, também baixa as mídias. Assim, você pode organizar um corpus, analisar conteúdos e documentar sua coleta para artigos e outras pesquisas, inclusive sobre desinformação.
 
-Produzido por **[douglasferreira](https://douglasferreira.me)**. A ferramenta organiza o material; a análise e a classificação dos conteúdos cabem ao pesquisador.
+Produzido por **[Douglas Ferreira](https://douglasferreira.me)**. A ferramenta organiza o material; a análise e a classificação dos conteúdos cabem ao pesquisador.
 
 ## Resumo da explicação
 
@@ -117,10 +119,32 @@ A coleta alcança o que o WhatsApp disponibiliza à sua conta. **Chegar ao limit
 
 Confira uma amostra das mensagens e mídias antes de analisar o corpus. Datas reconhecidas usam o padrão ISO em UTC; `data_original` preserva a informação observada. Campos desconhecidos ficam vazios; mensagens sem data reconhecida são excluídas quando há filtro de datas. Revise dados pessoais antes de compartilhar materiais ou publicar exemplos.
 
-Na metodologia, registre a versão indicada no relatório, data da coleta, período solicitado e limitações observadas. Exemplo de referência: **douglasferreira. Whatsapp Scoop, versão [versão do relatório]. Disponível em https://github.com/douglasferreira-me/WAScoop. Coleta realizada em [data].** Consulte também [privacidade e permissões](docs/PRIVACIDADE.md) e [estado da validação](docs/VALIDACAO.md).
+Na metodologia, registre a versão indicada no relatório, data da coleta, período solicitado e limitações observadas. Exemplo de referência: **Douglas Ferreira. Whatsapp Scoop, versão [versão do relatório]. Disponível em https://github.com/douglasferreira-me/WAScoop. Coleta realizada em [data].** Consulte também [privacidade e permissões](docs/PRIVACIDADE.md) e [estado da validação](docs/VALIDACAO.md).
 
 ## Para desenvolver ou fazer um fork
 
 A extensão usa JavaScript, HTML e CSS para funcionar no Firefox sem programa auxiliar; Python prepara os pacotes. A coleta combina rolagem e leitura da página com download de mídias pela sessão conectada, usando WA-JS. 
 
 O [guia técnico para forks](docs/DESENVOLVIMENTO.md) explica instalação do ambiente, organização do código, testes, empacotamento e distribuição. O projeto usa **GPL-3.0**, com licenças próprias para as bibliotecas incluídas.
+
+## Parcerias
+
+Em parceria com [Condado Lab](https://condadolab.org) e [OASIS — UFRJ](https://oasisufrj.org).
+
+<table>
+  <tr>
+    <td align="center" width="200">
+      <a href="https://condadolab.org"><img src="docs/branding/partners/condado-lab-symbol.png" width="64" height="64" alt="Condado Lab"></a><br>
+      <a href="https://condadolab.org">Condado Lab</a>
+    </td>
+    <td align="center" width="200">
+      <a href="https://oasisufrj.org">
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcset="docs/branding/partners/oasis-dark.png">
+          <img src="docs/branding/partners/oasis-light.png" width="160" alt="OASIS — UFRJ">
+        </picture>
+      </a><br>
+      <a href="https://oasisufrj.org">OASIS — UFRJ</a>
+    </td>
+  </tr>
+</table>

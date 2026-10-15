@@ -55,7 +55,7 @@ def main():
     archive(DIST / f"whatsapp-scoop-{version}-temporario.zip", files, EXT)
     archive(DIST / f"whatsapp-scoop-{version}-nao-assinado.xpi", files, EXT)
     sources = [p for name in ["extension", "scripts", "tests", "docs"] for p in (ROOT / name).rglob("*") if p.is_file() and "__pycache__" not in p.parts]
-    sources += [ROOT / name for name in ["README.md", "LICENSE", "package.json", "package-lock.json", ".gitignore", ".gitattributes"] if (ROOT / name).exists()]
+    sources += [ROOT / name for name in ["README.md", "README.en.md", "LICENSE", "package.json", "package-lock.json", ".gitignore", ".gitattributes"] if (ROOT / name).exists()]
     sources += [p for p in (ROOT / ".github").rglob("*") if p.is_file()]
     archive(DIST / f"whatsapp-scoop-{version}-codigo-fonte.zip", sources, ROOT)
     hashes = []
