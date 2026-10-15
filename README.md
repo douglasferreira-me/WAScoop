@@ -14,7 +14,7 @@ Produzido por **[douglasferreira](https://douglasferreira.me)**. A ferramenta or
 
 Este é o **resumo**; o passo a passo completo está logo abaixo. Você não precisa saber programar.
 
-1. Baixe e descompacte o [pacote de teste](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.4.3-beta/whatsapp-scoop-0.4.3-temporario.zip).
+1. Baixe e descompacte o [pacote de teste](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.4.4-beta/whatsapp-scoop-0.4.4-temporario.zip).
 2. No Firefox, abra `about:debugging` → **Este Firefox** → **Carregar extensão temporária** e selecione `manifest.json` na pasta descompactada.
 3. Abra o grupo ou canal no WhatsApp Web, abra o painel **Whatsapp Scoop** e clique em **Iniciar coleta**. Marque **Incluir mídias** se quiser os arquivos.
 4. Ao terminar, salve e descompacte o ZIP. Abra `mensagens.csv` como uma planilha e conserve os demais arquivos junto dela. Se marcar a opção XLSX, também terá uma planilha pronta para análise.
@@ -25,7 +25,7 @@ Este é o **resumo**; o passo a passo completo está logo abaixo. Você não pre
 
 Use **Firefox para computador, versão 140 ou posterior**. Não é necessário instalar Python ou outros programas de desenvolvimento.
 
-1. **Baixe o pacote.** Clique em [whatsapp-scoop-0.4.3-temporario.zip](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.4.3-beta/whatsapp-scoop-0.4.3-temporario.zip). Normalmente ele será salvo na pasta **Downloads**. Use esse arquivo, e não o pacote de código-fonte ou o arquivo `.xpi`.
+1. **Baixe o pacote.** Clique em [whatsapp-scoop-0.4.4-temporario.zip](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.4.4-beta/whatsapp-scoop-0.4.4-temporario.zip). Normalmente ele será salvo na pasta **Downloads**. Use esse arquivo, e não o pacote de código-fonte ou o arquivo `.xpi`.
 2. **Descompacte o arquivo.** ZIP é um arquivo que reúne uma pasta e seus conteúdos. No Windows, clique com o botão direito e escolha **Extrair tudo**. No macOS, dê dois cliques no ZIP. Guarde a pasta extraída: você precisará dela nas próximas instalações.
 3. **Abra a página de instalação.** No Firefox, clique na barra de endereço, no alto da janela. Digite `about:debugging` e pressione **Enter**.
 4. **Escolha este navegador.** Clique em **Este Firefox**, à esquerda. Depois clique em **Carregar extensão temporária…**. Se o Firefox estiver em inglês, os nomes são **This Firefox** e **Load Temporary Add-on…**.
@@ -76,12 +76,14 @@ Para outros programas, abra `mensagens.csv` no Excel ou LibreOffice, ou importe 
 - **Links:** a coluna `links` registra os endereços encontrados nas mensagens, sem abrir os sites. Imagens de prévias de links não substituem mídias enviadas diretamente.
 - **Interações:** `interacoes_total` registra o total de reações observado. `interacoes_precisao` indica se a contagem é exata, aproximada ou indisponível. Um campo vazio não significa zero. A contagem pode mudar depois da coleta.
 
+**Idioma do painel:** escolha **Português** ou **English** no seletor **Idioma / Language**, logo no início. A escolha fica salva neste navegador e pode ser alterada durante a coleta. As mensagens e os nomes das colunas dos arquivos exportados permanecem originais.
+
 ### Monitorar somente mensagens novas
 
 1. Abra o canal e escolha **Monitorar novas mensagens de um canal** no painel. As mídias são incluídas automaticamente; o histórico anterior fica de fora.
 2. Escolha **ZIP no computador** e exporte manualmente ao pausar ou encerrar. O destino **Google Drive** é experimental e está restrito às contas cadastradas como usuários de teste no aplicativo Google; o aplicativo já vem configurado e basta clicar em **Conectar ao Google Drive** e escolher sua conta.
 3. Clique em **Iniciar coleta** e deixe o canal carregado na aba do WhatsApp. **Você pode usar outras abas normalmente**, sem manter o WhatsApp selecionado. O painel mostra mensagens, mídias, espaço local e envios pendentes; fechar o painel não encerra a coleta.
-4. No Drive, uma pasta reúne as mídias e **um único `mensagens.csv`**, atualizado a cada minuto quando houver mudanças. **Sincronizar agora** antecipa o envio. XLSX continua opcional, gerado ao encerrar.
+4. No Drive, uma pasta reúne as mídias e **um único `mensagens.csv`**, atualizado a cada minuto quando houver mudanças. **Sincronizar agora** antecipa o envio. Se marcar **Incluir workbook de análise (XLSX)** antes de iniciar, o mesmo `workbook.xlsx` também será atualizado automaticamente. Gerá-lo pode tornar a sincronização mais lenta; CSV e XLSX são arquivos no Drive, não uma planilha nativa do Google Planilhas.
 
 As mensagens ficam no disco do Firefox, sem manter todo o corpus na memória. O limite local de mídias é **512 MB**, ajustável antes de iniciar. Você pode marcar **Liberar cópias locais após confirmação no Drive**: isso reduz o espaço usado, mas o ZIP passa a conter referências às mídias remotas já liberadas. Desmarcado, preserva as cópias locais para um ZIP completo. Arquivos individuais acima de 256 MB pausam o monitoramento.
 

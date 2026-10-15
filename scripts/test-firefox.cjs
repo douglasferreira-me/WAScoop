@@ -57,6 +57,28 @@ async function checkBackground(driver, call, origin, panelTab) {
   await fs.writeFile("docs/firefox-background-result.json", JSON.stringify({ extensionVersion: JSON.parse(await fs.readFile("extension/manifest.json")).version, browser: (await driver.getCapabilities()).get("browserVersion"), fixture: "canal sintético local; API WPP simulada; não WhatsApp real", foreground: "página comum de pesquisa, sem painel da extensão", seconds: 80, whatsappVisibility: visibility, messages: state.job.count, media: state.job.mediaCount, mediaFailures: state.job.mediaFailures, lastMessageScheduledAfterSeconds: 65, passed: true }, null, 2));
   console.log("PASS: 80 segundos usando outra aba; 3 mensagens e 2 mídias capturadas com a conversa oculta, sem mudar o foco.");
 }
+async function checkLanguage(driver) {
+  const text = id => driver.executeScript("return document.getElementById(arguments[0]).textContent", id);
+  assert.equal(await text("start-button"), "Iniciar coleta");
+  await driver.executeScript("document.getElementById('media').checked=true;const select=document.getElementById('language');select.value='en';select.dispatchEvent(new Event('change'))");
+  await driver.wait(async()=>await text("start-button")==="Start collection",5000);
+  assert.equal(await driver.executeScript("return document.documentElement.lang"),"en");
+  assert.equal(await driver.executeScript("return document.getElementById('media').checked"),true);
+  assert.equal(await driver.executeScript("return document.getElementById('language').getBoundingClientRect().top < document.querySelector('header').getBoundingClientRect().top"),true);
+  await driver.wait(async()=>driver.executeAsyncScript(done=>browser.storage.local.get('uiLanguage').then(v=>done(v.uiLanguage))).then(v=>v==='en'),5000);
+  await driver.navigate().refresh();await driver.wait(async()=>await text("start-button")==="Start collection",5000);
+  const state=await driver.executeAsyncScript(done=>browser.runtime.sendMessage({type:'state'}).then(v=>done(v.state)));
+  state.job={key:'ui-only',status:'paused',conversation:{title:'Conversa aberta'},options:{mode:'monitor',destination:'drive'},phase:'Monitorando novas mensagens',count:1234,mediaCount:2,bytes:100,mediaFailures:0,oldest:'2026-10-10T12:00:00Z',newest:'2026-10-15T12:00:00Z',notice:'O total de mensagens não é conhecido antes da coleta.'};
+  await driver.executeAsyncScript((state,done)=>browser.runtime.getBackgroundPage().then(bg=>bg.browser.runtime.sendMessage({target:'panel',type:'state',state})).then(done),state);
+  await driver.wait(async()=>(await text('progress-title')).includes('Your collection'),5000);
+  assert.equal(await text('progress-title'),'Your collection · Conversa aberta');
+  assert.equal(await text('messages-count'),'1,234');assert.equal(await text('resume'),'Resume');assert.match(await text('sync-status'),/Last check/);assert.match(await text('notice'),/Use Resume/);
+  await driver.executeScript("const select=document.getElementById('language');select.value='pt-BR';select.dispatchEvent(new Event('change'))");
+  await driver.wait(async()=>await text('progress-title')==='Sua coleta · Conversa aberta',5000);
+  assert.equal(await text('messages-count'),'1.234');assert.equal(await text('resume'),'Continuar');
+  await driver.navigate().refresh();await driver.wait(async()=>await text('start-button')==='Iniciar coleta',5000);
+  console.log('PASS: idioma visível no início; Português/English, preferência persistente e progresso traduzido sem alterar conversa.');
+}
 async function checkDriveFetch(driver, origin, call) {
   const bundled = JSON.parse(await fs.readFile("extension/config.json")).googleClientId;
   let google = (await call("state")).state;
@@ -124,7 +146,7 @@ async function main() {
     await wait(600);
     const panelTab = await driver.getWindowHandle();
     const call = (type, extra = {}) => driver.executeAsyncScript((type, extra, done) => browser.runtime.sendMessage({ type, ...extra }).then(done, e => done({ ok: false, error: e.message })), type, extra);
-    if (process.env.SCOOP_DRIVE_ONLY === "1") { await checkDriveFetch(driver, origin, call); return; }
+    if (process.env.SCOOP_DRIVE_ONLY === "1") { await checkLanguage(driver); await checkDriveFetch(driver, origin, call); return; }
     if (process.env.SCOOP_BACKGROUND_ONLY === "1") { await checkBackground(driver, call, origin, panelTab); return; }
     const emptyLog = await call("download-log"); assert.equal(emptyLog.downloaded,true); assert.equal(JSON.parse(emptyLog.text).collection,null);
     await wait(300); const inspected = await call("inspect");

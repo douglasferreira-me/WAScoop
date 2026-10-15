@@ -2,6 +2,7 @@
 <html lang="pt-BR">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Whatsapp Scoop</title><link rel="stylesheet" href="panel.css"></head>
 <body>
+  <div class="language-bar"><label for="language">Idioma / Language</label><select id="language"><option value="pt-BR">Português</option><option value="en">English</option></select></div>
   <header class="brand"><img src="icons/scoop.svg" width="44" height="44" alt=""><div><h1>Whatsapp Scoop</h1><p>Um corpus para sua pesquisa.</p></div><span class="badge">beta</span></header>
   <main>
     <section aria-labelledby="conversation-title"><div class="section-heading"><h2 id="conversation-title">Conversa aberta</h2><button id="inspect" class="text-button">Atualizar</button></div><p id="conversation" class="conversation">Abra um grupo ou canal no WhatsApp Web.</p><p class="hint">Coleta somente o histórico que sua sessão consegue acessar.</p></section>
@@ -16,7 +17,7 @@
         <label class="check"><input type="checkbox" id="workbook"><span>Incluir workbook de análise (XLSX)<small>Opcional. Com resumo, filtros e referências às mídias. Pode aumentar o tempo de exportação, especialmente em coletas grandes.</small></span></label>
         <label class="check"><input type="checkbox" id="pseudonymize"><span>Usar pseudônimos para remetentes<small>Substitui nomes e números nos campos de identificação. Texto e mídias permanecem originais.</small></span></label>
         <label class="destination">Destino<select id="destination"><option value="zip">Baixar um ZIP no computador</option><option value="drive">Google Drive</option></select></label>
-        <p class="hint">O CSV é sempre incluído. No monitoramento, o mesmo CSV é atualizado no Drive a cada minuto quando houver mudanças.</p>
+        <p class="hint">O CSV é sempre incluído. No monitoramento, o mesmo CSV e, se marcado, o mesmo workbook são atualizados no Drive a cada minuto quando houver mudanças. Gerar o workbook pode tornar a sincronização mais lenta.</p>
         <div id="monitor-options" hidden><label>Limite local de mídias (MB)<input id="local-limit" type="number" value="512" min="128" max="4096" step="1"></label><p class="hint">Ao atingir o limite, a captura pausa. Arquivos individuais acima de 256 MB também pausam a captura.</p><label class="check"><input id="release-media" type="checkbox"><span>Liberar cópias locais após confirmação no Drive<small>Reduz o espaço usado. O ZIP terá referências para essas mídias no Drive; conserve as cópias locais se precisar de um ZIP completo.</small></span></label></div>
       </fieldset>
       <div id="drive-box" hidden><p>O aplicativo Google já vem configurado. Clique em Conectar e escolha sua conta. Por enquanto, o acesso está restrito às contas autorizadas para teste pelo mantenedor; o ZIP local continua disponível para todos.</p><button type="button" id="connect" class="secondary">Conectar ao Google Drive</button><button type="button" id="disconnect" class="text-button" hidden>Desconectar</button><p id="drive-status" class="hint"></p></div>
