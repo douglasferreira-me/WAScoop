@@ -3,7 +3,8 @@ const API = "https://www.googleapis.com/drive/v3/files";
 const UPLOAD = "https://www.googleapis.com/upload/drive/v3/files";
 export class AuthRequired extends Error {}
 export class Drive {
-  constructor({ identity = browser.identity, fetcher = fetch, clock = Date.now, sleeper = ms => new Promise(r => setTimeout(r, ms)), tokenProvider, authorize = async () => {} } = {}) {
+  // Firefox requires the Window receiver even when fetch is stored on this client.
+  constructor({ identity = browser.identity, fetcher = globalThis.fetch.bind(globalThis), clock = Date.now, sleeper = ms => new Promise(r => setTimeout(r, ms)), tokenProvider, authorize = async () => {} } = {}) {
     this.identity = identity; this.fetcher = fetcher; this.clock = clock; this.sleeper = sleeper; this.tokenProvider = tokenProvider;
     this.token = null; this.expires = 0;
     this.authorize = authorize;

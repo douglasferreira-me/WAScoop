@@ -1,0 +1,42 @@
+{
+  "extensionVersion": "0.4.1",
+  "browser": "153.5.0",
+  "fixture": "fetch nativo do Firefox; OAuth e endpoints Google simulados localmente; sem conta Google real",
+  "originalError": "'fetch' called on an object that does not implement interface Window.",
+  "nativeFetchOK": true,
+  "connected": true,
+  "folder": "fixture-folder",
+  "uploaded": "fixture-file",
+  "updated": "fixture-file",
+  "requests": [
+    {
+      "route": "tokeninfo",
+      "method": "GET"
+    },
+    {
+      "route": "about",
+      "method": "GET"
+    },
+    {
+      "route": "files",
+      "method": "POST"
+    },
+    {
+      "route": "upload",
+      "method": "POST"
+    },
+    {
+      "route": "session",
+      "method": "PUT"
+    },
+    {
+      "route": "upload",
+      "method": "PATCH"
+    },
+    {
+      "route": "session",
+      "method": "PUT"
+    }
+  ],
+  "passed": true
+}

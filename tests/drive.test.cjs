@@ -67,3 +67,21 @@ test('sessão retomável expirada é substituída mantendo o ID do CSV',async()=
  const result=await d.upload('mensagens.csv',new Blob(['texto']),'folder',()=>{},'https://www.googleapis.com/expired',async url=>sessions.push(url),'csv-id');
  assert.equal(result.id,'csv-id');assert.deepEqual(sessions,[null,'https://www.googleapis.com/upload/new']);assert.equal(calls,3);
 });
+
+test('fetch padrão mantém o contexto global exigido pelo Firefox em todas as etapas do Drive', async () => {
+ const {Drive}=await importFile('lib/drive.js');
+ const original=globalThis.fetch, calls=[];
+ const client='123.apps.googleusercontent.com',redirect='https://test.extensions.allizom.org/';
+ try {
+  globalThis.fetch=async function(url,init){
+   assert.equal(this,globalThis,"fetch deve receber Window/globalThis, nunca a instância Drive");calls.push(url);
+   if(url.includes('tokeninfo'))return response(200,{aud:client,scope:'https://www.googleapis.com/auth/drive.file',expires_in:3600});
+   if(url.includes('/about?'))return response(200,{user:{permissionId:'account'}});
+   if(url.includes('/upload/')&&init.method==='POST')return response(200,{}, {Location:'https://www.googleapis.com/upload/session'});
+   return response(200,{id:'file'});
+  };
+  const identity={getRedirectURL:()=>redirect,launchWebAuthFlow:async({url})=>redirect+'#state='+new URL(url).searchParams.get('state')+'&access_token=fixture&expires_in=3600'};
+  const drive=new Drive({identity});await drive.connect(client);assert.ok(drive.connected());
+  await drive.folder('Teste');await drive.upload('a.bin',new Blob(['abc']),'folder');assert.equal(calls.length,5);
+ } finally {globalThis.fetch=original;}
+});

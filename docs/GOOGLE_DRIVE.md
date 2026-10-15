@@ -40,6 +40,7 @@ Durante um monitoramento, a pasta permanece associada à conta originalmente con
 
 | Mensagem ou situação | Conferir |
 | --- | --- |
+| `fetch` / `does not implement interface Window` | Atualize para a versão 0.4.1 ou posterior. É uma falha de contexto da chamada de rede na versão anterior; não exige criar outro Client ID. |
 | `redirect_uri_mismatch` | Copie novamente o redirecionamento exato mostrado na extensão. Confira projeto e cliente escolhidos; mudanças no ID da extensão alteram o endereço. |
 | `access_denied` ou aplicativo em teste | Seu e-mail precisa estar nos usuários de teste. Confira também restrições da organização. |
 | Aplicativo ou cliente inválido | O tipo deve ser Aplicativo da Web, com Client ID correto e Drive API ativada. |

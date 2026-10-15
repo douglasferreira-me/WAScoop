@@ -57,11 +57,27 @@ async function checkBackground(driver, call, origin, panelTab) {
   await fs.writeFile("docs/firefox-background-result.json", JSON.stringify({ extensionVersion: JSON.parse(await fs.readFile("extension/manifest.json")).version, browser: (await driver.getCapabilities()).get("browserVersion"), fixture: "canal sintético local; API WPP simulada; não WhatsApp real", foreground: "página comum de pesquisa, sem painel da extensão", seconds: 80, whatsappVisibility: visibility, messages: state.job.count, media: state.job.mediaCount, mediaFailures: state.job.mediaFailures, lastMessageScheduledAfterSeconds: 65, passed: true }, null, 2));
   console.log("PASS: 80 segundos usando outra aba; 3 mensagens e 2 mídias capturadas com a conversa oculta, sem mudar o foco.");
 }
+async function checkDriveFetch(driver, origin) {
+  await driver.executeScript("const script=document.createElement('script');script.type='module';script.src=browser.runtime.getURL('drive-fetch-fixture.js')+'?origin='+encodeURIComponent(arguments[0]);document.body.append(script);", origin);
+  const text = await driver.wait(async () => driver.executeScript("return document.getElementById('scoop-drive-test-result')?.textContent || null"), 15000);
+  const result = JSON.parse(text);
+  assert.ok(!result.error, JSON.stringify(result));
+  assert.match(result.originalError, /Window/); assert.equal(result.nativeFetchOK, true); assert.equal(result.connected, true);
+  assert.equal(result.uploaded, result.updated); assert.ok(result.requests.some(r => r.method === "PATCH"));
+  await fs.writeFile("docs/firefox-drive-result.json", JSON.stringify({extensionVersion:JSON.parse(await fs.readFile("extension/manifest.json")).version,browser:(await driver.getCapabilities()).get("browserVersion"),fixture:"fetch nativo do Firefox; OAuth e endpoints Google simulados localmente; sem conta Google real",...result,passed:true},null,2));
+  console.log("PASS: erro Window reproduzido; fetch nativo corrigido; validação OAuth, pasta, upload e atualização do CSV aprovados com endpoints locais.");
+}
 async function main() {
   if (!process.env.FIREFOX_BIN || !process.env.GECKODRIVER_BIN) throw new Error("Defina FIREFOX_BIN e GECKODRIVER_BIN para os binários oficiais da Mozilla.");
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "wascoop-test-")), source = path.join(root, "extension"), downloads = path.join(root, "downloads");
   await fs.mkdir(downloads); await fs.cp("extension", source, { recursive: true });
-  const server = http.createServer((req, res) => { res.writeHead(200, { "Content-Type": "text/html;charset=utf-8" }); res.end(req.url === "/research" ? '<!doctype html><html lang="pt-BR"><meta charset="utf-8"><h1>Pesquisa em outra aba</h1><input aria-label="Anotações"><p>Esta página permanece ativa durante o teste.</p></html>' : req.url.includes("channel") ? fixture.replaceAll("Grupo sintético", "Canal sintético").replace("<header>", "<header><span>100 seguidores</span>") : fixture); });
+  const server = http.createServer((req, res) => {
+    if (req.url.startsWith("/drive-test/")) {
+      const route = req.url.split("/").pop();
+      const body = route === "tokeninfo" ? {aud:"fixture.apps.googleusercontent.com",scope:"https://www.googleapis.com/auth/drive.file",expires_in:3600} : route === "about" ? {user:{permissionId:"fixture-account"}} : {id: route === "files" ? "fixture-folder" : "fixture-file"};
+      res.writeHead(200,{"Content-Type":"application/json", ...(route === "upload" ? {Location:"https://www.googleapis.com/upload/fixture-session"} : {})});res.end(JSON.stringify(body));return;
+    }
+    res.writeHead(200, { "Content-Type": "text/html;charset=utf-8" }); res.end(req.url === "/research" ? '<!doctype html><html lang="pt-BR"><meta charset="utf-8"><h1>Pesquisa em outra aba</h1><input aria-label="Anotações"><p>Esta página permanece ativa durante o teste.</p></html>' : req.url.includes("channel") ? fixture.replaceAll("Grupo sintético", "Canal sintético").replace("<header>", "<header><span>100 seguidores</span>") : fixture); });
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
   const origin = `http://127.0.0.1:${server.address().port}`;
   const manifest = JSON.parse(await fs.readFile(path.join(source, "manifest.json")));
@@ -76,6 +92,7 @@ async function main() {
   let content = await fs.readFile(path.join(source, "content/collector.js"), "utf8");
   content = content.replaceAll("blob:https://web.whatsapp.com/", `blob:${origin}/`);
   await fs.writeFile(path.join(source, "content/collector.js"), content);
+  if (process.env.SCOOP_DRIVE_ONLY === "1") await fs.copyFile("scripts/fixtures/drive-fetch.js", path.join(source, "drive-fetch-fixture.js"));
   const uuid = "94173b9f-33c7-4468-9a24-a31c506cad61";
   const options = new firefox.Options().setBinary(process.env.FIREFOX_BIN).addArguments("-headless", "-no-remote").setPreference("extensions.webextensions.uuids", JSON.stringify({ [manifest.browser_specific_settings.gecko.id]: uuid })).setPreference("browser.download.folderList", 2).setPreference("browser.download.dir", downloads).setPreference("browser.download.useDownloadDir", true).setPreference("browser.download.alwaysOpenPanel", false);
   const service = new firefox.ServiceBuilder(process.env.GECKODRIVER_BIN).addArguments("--allow-system-access");
@@ -94,6 +111,7 @@ async function main() {
     await wait(600);
     const panelTab = await driver.getWindowHandle();
     const call = (type, extra = {}) => driver.executeAsyncScript((type, extra, done) => browser.runtime.sendMessage({ type, ...extra }).then(done, e => done({ ok: false, error: e.message })), type, extra);
+    if (process.env.SCOOP_DRIVE_ONLY === "1") { await checkDriveFetch(driver, origin); return; }
     if (process.env.SCOOP_BACKGROUND_ONLY === "1") { await checkBackground(driver, call, origin, panelTab); return; }
     const emptyLog = await call("download-log"); assert.equal(emptyLog.downloaded,true); assert.equal(JSON.parse(emptyLog.text).collection,null);
     await wait(300); const inspected = await call("inspect");

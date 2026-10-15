@@ -38,6 +38,14 @@ SCOOP_BACKGROUND_ONLY=1 FIREFOX_BIN=/caminho/para/firefox GECKODRIVER_BIN=/camin
 
 O teste mantém uma página comum ativa por 80 segundos e programa três mensagens na API sintética da conversa oculta, incluindo foto e áudio. A última chega após 65 segundos, além do período inicial de possíveis restrições de temporizadores. Confere `document.hidden`, captura das mídias, contagens e ausência de mudança do foco para a conversa. O resultado fica em `firefox-background-result.json`. Não desativa as restrições de segundo plano do navegador e não comprova operação com a aba descarregada ou computador suspenso.
 
+## Rede do Drive no Firefox
+
+```sh
+SCOOP_DRIVE_ONLY=1 FIREFOX_BIN=/caminho/para/firefox GECKODRIVER_BIN=/caminho/para/geckodriver npm run test:firefox
+```
+
+Reproduz o erro de receiver de `Window.fetch`, confere o cliente corrigido com fetch nativo e exercita validação OAuth, pasta, upload e atualização com endpoints Google simulados num servidor local. A fixture roda como módulo real na página da extensão, pois o sandbox de scripts do WebDriver tem contexto global diferente. Nenhuma credencial real é usada ou enviada ao Google. O resultado fica em `firefox-drive-result.json`; essa fixture não é incluída no pacote distribuído.
+
 ## Estado de validação
 
 Resultados desta implementação serão registrados em `docs/VALIDACAO.md`. Testes sintéticos e lint não substituem validação em uma conta WhatsApp real. O Drive não é validado ponta a ponta sem Client ID e conta Google autorizada.
