@@ -46,11 +46,16 @@ function enqueue(id, action) {
   const next = (serial.get(id) || Promise.resolve()).catch(() => {}).then(action);
   serial.set(id, next); next.finally(() => { if (serial.get(id) === next) serial.delete(id); }).catch(() => {}); return next;
 }
+// Client IDs are public app identifiers; access tokens never enter these settings.
+async function googleClient() {
+  const settings = await browser.storage.local.get("googleClientId"), cfg = await config;
+  const override = settings.googleClientId || "";
+  return { id: override || cfg.googleClientId || "", override, source: override ? "custom" : cfg.googleClientId ? "bundled" : "missing", defaultConfigured: !!cfg.googleClientId };
+}
 async function state() {
   await ready;
-  const settings = await browser.storage.local.get("googleClientId");
-  const cfg = await config;
-  return { job: job ? { ...job, options: { ...job.options }, failures: undefined } : null, conversation: inspectCache, driveConnected: drive.connected(), driveConfigured: !!(settings.googleClientId || cfg.googleClientId), redirect: browser.identity?.getRedirectURL?.() || "", exportBusy };
+  const google = await googleClient();
+  return { job: job ? { ...job, options: { ...job.options }, failures: undefined } : null, conversation: inspectCache, driveConnected: drive.connected(), driveConfigured: !!google.id, googleClientId: google.id, googleClientOverride: google.override, googleClientSource: google.source, googleDefaultConfigured: google.defaultConfigured, redirect: browser.identity?.getRedirectURL?.() || "", exportBusy };
 }
 async function publish() { try { await browser.runtime.sendMessage({ target: "panel", type: "state", state: await state() }); } catch { /* Panel can be closed. */ } }
 async function save() { if (job) { await store.put("jobs", job); await publish(); } }
@@ -389,15 +394,18 @@ browser.runtime.onMessage.addListener(async (m, sender) => {
     else if (m.type === "finish-drive") await finishDrive();
     else if (m.type === "connect") {
       await assertGooglePermissions();
-      const settings = await browser.storage.local.get("googleClientId"), cfg = await config;
-      await drive.connect(settings.googleClientId || cfg.googleClientId);
+      const google = await googleClient();
+      await drive.connect(google.id);
       if (job?.driveAccount && job.driveAccount !== drive.account && ["running", "paused", "stopping"].includes(job.status)) { drive.disconnect(); throw new Error("Use a mesma conta que criou a pasta desta coleta."); }
       nextSync = 0; if (isMonitor()) setTimeout(() => syncLive(), 0); await publish();
     }
     else if (m.type === "disconnect") { drive.disconnect(); if (job?.options.destination === "drive" && job.status === "running") { if (isMonitor()) { job.uploadNotice = "Drive desconectado; novas mídias permanecerão na fila local até o limite."; await save(); } else await pause("Google Drive desconectado."); } await publish(); }
     else if (m.type === "configure-google") {
       if (m.clientId && !/^[a-zA-Z0-9_-]+\.apps\.googleusercontent\.com$/.test(m.clientId)) throw new Error("Client ID inválido.");
-      await browser.storage.local.set({ googleClientId: m.clientId || "" }); drive.disconnect(); await publish();
+      if ((job?.options.destination === "drive" && ["running", "paused", "stopping"].includes(job.status)) || liveSync.busy) throw new Error("Encerre a coleta e aguarde os envios antes de trocar o aplicativo Google.");
+      if (m.clientId) await browser.storage.local.set({ googleClientId: m.clientId });
+      else await browser.storage.local.remove("googleClientId");
+      drive.disconnect(); await publish();
     }
     else if (m.type === "clear") {
       if (exportBusy || liveSync.busy || job && ["running", "stopping", "paused"].includes(job.status)) throw new Error("Encerre a coleta antes de apagar os dados temporários.");

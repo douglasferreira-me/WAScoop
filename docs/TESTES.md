@@ -44,7 +44,7 @@ O teste mantém uma página comum ativa por 80 segundos e programa três mensage
 SCOOP_DRIVE_ONLY=1 FIREFOX_BIN=/caminho/para/firefox GECKODRIVER_BIN=/caminho/para/geckodriver npm run test:firefox
 ```
 
-Reproduz o erro de receiver de `Window.fetch`, confere o cliente corrigido com fetch nativo e exercita validação OAuth, pasta, upload e atualização com endpoints Google simulados num servidor local. A fixture roda como módulo real na página da extensão, pois o sandbox de scripts do WebDriver tem contexto global diferente. Nenhuma credencial real é usada ou enviada ao Google. O resultado fica em `firefox-drive-result.json`; essa fixture não é incluída no pacote distribuído.
+Confere o Client ID incluído em instalação nova, substituição persistente para forks, restauração pelo painel e rejeição de ID inválido. Reproduz o erro de receiver de `Window.fetch`, confere o cliente corrigido com fetch nativo e exercita validação OAuth, pasta, upload e atualização com endpoints Google simulados num servidor local. A fixture roda como módulo real na página da extensão, pois o sandbox de scripts do WebDriver tem contexto global diferente. Nenhuma credencial real é usada ou enviada ao Google. O resultado fica em `firefox-drive-result.json`; essa fixture não é incluída no pacote distribuído.
 
 ## Estado de validação
 

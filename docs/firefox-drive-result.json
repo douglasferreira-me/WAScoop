@@ -1,5 +1,5 @@
 {
-  "extensionVersion": "0.4.1",
+  "extensionVersion": "0.4.2",
   "browser": "153.5.0",
   "fixture": "fetch nativo do Firefox; OAuth e endpoints Google simulados localmente; sem conta Google real",
   "originalError": "'fetch' called on an object that does not implement interface Window.",
@@ -38,5 +38,9 @@
       "method": "PUT"
     }
   ],
+  "bundledClientConfigured": true,
+  "customClientPersisted": true,
+  "restoredBundledClient": true,
+  "invalidOverrideRejected": true,
   "passed": true
 }

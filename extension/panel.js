@@ -27,8 +27,11 @@ function render(state) {
   $("progress-section").hidden = !j;
   $("connect").textContent = state.driveConnected ? "Reconectar ao Google Drive" : "Conectar ao Google Drive";
   $("disconnect").hidden = !state.driveConnected;
-  $("drive-status").textContent = state.driveConnected ? "Conta conectada nesta sessão." : state.driveConfigured ? "Aplicativo configurado. Conecte sua conta para testar o envio." : "Login ainda não configurado. Siga o guia em Configuração do Google Drive ou use ZIP local.";
+  $("drive-status").textContent = state.driveConnected ? "Conta conectada nesta sessão." : state.driveConfigured ? "Aplicativo configurado. Conecte uma conta autorizada para teste." : "Este pacote não tem aplicativo Google configurado. Use ZIP local ou configure um ID próprio nas opções avançadas.";
   $("redirect").textContent = state.redirect;
+  $("google-source").textContent = state.googleClientSource === "custom" ? "Usando um Client ID próprio salvo neste navegador." : state.googleClientSource === "bundled" ? "Usando o Client ID padrão incluído na extensão." : "Nenhum aplicativo Google configurado.";
+  if (document.activeElement !== $("client-id")) $("client-id").value = state.googleClientOverride || "";
+  $("reset-google").disabled = !state.googleClientOverride;
   if (!j) return;
   $("progress-title").textContent = `Sua coleta · ${j.conversation.title}`;
   $("status").textContent = (j.status === "finished" && j.incompleteCount ? "encerrada com pendências" : labels[j.status]) || j.status;
@@ -71,8 +74,9 @@ $("settings").addEventListener("submit", async e => {
 for (const id of ["inspect", "pause", "resume", "stop", "export", "finish-drive", "disconnect", "restore"]) bind(id, () => command(id));
 bind("clear", async () => { if (confirm("Apagar os dados temporários da coleta atual? Os arquivos já exportados serão preservados.")) await command("clear"); });
 bind("save-google", () => command("configure-google", { clientId: $("client-id").value.trim() }));
+bind("reset-google", async () => { await command("configure-google", { clientId: "" }); $("client-id").value = ""; });
 bind("connect", async () => {
-  if (!current?.driveConfigured) throw new Error("Siga o guia em Configuração do Google Drive e salve o Client ID antes de conectar.");
+  if (!current?.driveConfigured) throw new Error("Este pacote não tem aplicativo Google configurado. Use ZIP local ou configure um ID próprio nas opções avançadas.");
   const granted = await browser.permissions.request({ origins: ["https://accounts.google.com/*", "https://www.googleapis.com/*", "https://oauth2.googleapis.com/*"], data_collection: ["personalCommunications", "personallyIdentifyingInfo", "websiteContent", "authenticationInfo"] });
   if (!granted) throw new Error("Permissão Google não autorizada.");
   await command("connect");

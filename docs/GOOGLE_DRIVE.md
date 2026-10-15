@@ -1,8 +1,12 @@
 # Configurar o Google Drive
 
-O login precisa de um **Client ID OAuth** criado pelo mantenedor. Não há servidor do Whatsapp Scoop e não é necessário fornecer sua senha à extensão. O Client ID é público; o segredo do cliente não é usado.
+Desde a versão **0.4.2**, o Client ID do Whatsapp Scoop já vem incluído. **Para usar:** escolha o destino Google Drive, clique em **Conectar ao Google Drive** e autorize sua própria conta. Não é necessário criar projeto, copiar ID ou preencher configurações. O aplicativo permanece em **Teste**, restrito às contas cadastradas pelo mantenedor; o login e o upload reais continuam em validação.
 
-## Resumo
+O restante deste guia é para **mantenedores e desenvolvedores de forks**. Não há servidor do Whatsapp Scoop e o segredo do cliente não é usado. O Client ID identifica publicamente o aplicativo; não concede acesso ao Drive sem autorização do usuário. Não há criptografia ou ofuscação desse identificador no pacote: a chave necessária para decifrá-lo também teria que estar no aplicativo. Os tokens de acesso são diferentes: ficam apenas na memória, fora do pacote, configurações e logs.
+
+Para usar um aplicativo próprio, abra **Configurações avançadas · Google e forks**, informe seu Client ID e clique em **Salvar ID próprio**. Essa opção tem prioridade sobre o ID incluído e fica salva somente no perfil atual. **Restaurar padrão da extensão** remove a substituição e volta ao aplicativo padrão; é necessário conectar novamente. Encerre uma coleta ativa no Drive antes de trocar o aplicativo. Um fork pode substituir o padrão em `extension/config.json`, preservando apenas o campo público `googleClientId`.
+
+## Resumo para mantenedores
 
 Crie um projeto Google, habilite a Drive API, cadastre seu e-mail como usuário de teste e crie um cliente OAuth **Aplicativo da Web**. Copie o redirecionamento mostrado na extensão para esse cliente. Cole o Client ID na extensão, conecte sua conta e teste com um canal sob seu controle.
 
@@ -12,13 +16,13 @@ Crie um projeto Google, habilite a Drive API, cadastre seu e-mail como usuário 
 2. Abra **APIs e serviços → Biblioteca**, procure **Google Drive API** e clique em **Ativar**. [Abrir a biblioteca da Drive API](https://console.cloud.google.com/apis/library/drive.googleapis.com).
 3. Abra **Google Auth Platform** (ou **APIs e serviços → Tela de permissão OAuth**, conforme a interface). Configure o nome **Whatsapp Scoop**, seu e-mail de suporte e contato. Escolha público **Externo**, mantenha em **Teste** e adicione seu próprio e-mail em **Usuários de teste**. Contas de uma organização podem ter restrições do administrador.
 4. Em **Acesso a dados / Escopos**, solicite somente `https://www.googleapis.com/auth/drive.file`. Isso permite trabalhar com os arquivos criados pelo aplicativo, sem pedir acesso ao Drive inteiro.
-5. Na extensão, abra **Configuração do Google Drive** e copie o **Redirecionamento a cadastrar no Google**. Ele é gerado pelo Firefox para o ID fixo da extensão; não substitua por localhost ou por um endereço inventado. O botão de copiar evita erros.
+5. Na extensão, abra **Configurações avançadas · Google e forks** e copie o **Redirecionamento a cadastrar no Google**. Ele é gerado pelo Firefox para o ID fixo da extensão; não substitua por localhost ou por um endereço inventado. O botão de copiar evita erros.
 6. No Google, abra **Clientes → Criar cliente** (ou **Credenciais → Criar credenciais → ID do cliente OAuth**). Escolha **Aplicativo da Web** e o nome **Whatsapp Scoop Firefox**. Em **URIs de redirecionamento autorizados**, cole exatamente o endereço do passo 5, incluindo a barra final se houver. Não é preciso cadastrar uma origem JavaScript para esse fluxo.
-7. Copie o **ID do cliente**, terminado em `.apps.googleusercontent.com`. Cole em **Client ID público** na extensão e clique em **Salvar configuração**. **Não copie o segredo do cliente.**
+7. Copie o **ID do cliente**, terminado em `.apps.googleusercontent.com`. Cole em **Client ID próprio (opcional)** na extensão e clique em **Salvar ID próprio**. **Não copie o segredo do cliente.**
 8. Escolha destino **Google Drive**, clique em **Conectar ao Google Drive**, aceite as permissões do Firefox e selecione sua conta Google de teste. Se o Google bloquear o acesso por falta de configuração, confira os itens de solução de problemas abaixo.
 9. Faça um teste curto: inicie o monitoramento de um canal, publique uma mensagem e uma mídia em seu canal de teste e clique em **Sincronizar agora**. Abra a pasta pelo painel e confirme os arquivos. Só depois deixe uma coleta longa rodando.
 
-Você pode fazer os passos 1–4 enquanto prepara o restante. O redirecionamento também aparece nas versões anteriores da extensão, na configuração do mantenedor, pois o ID do aplicativo permanece o mesmo.
+Você pode fazer os passos 1–4 enquanto prepara o restante. Nas versões anteriores, o redirecionamento aparece em Configuração do Google Drive; o ID da extensão permanece o mesmo na distribuição oficial.
 
 ## Como o monitoramento salva
 
@@ -49,7 +53,7 @@ Durante um monitoramento, a pasta permanece associada à conta originalmente con
 | Erro 404 ao retomar | A pasta/arquivo pode ter sido removido ou pertencer a outra conta. Preserve o material local e confira o relatório. |
 | Fila cheia | Reconecte/restabeleça internet e sincronize. Se estiver mantendo cópias locais, encerre e exporte; escolha um limite maior na próxima coleta somente se houver espaço disponível. |
 
-Não apresente a integração como validada em uma conta real até confirmar login, criação da pasta, upload de mídia, atualização do CSV e retomada após expiração. Para distribuir a todos, o mantenedor pode incluir o Client ID público em `extension/config.json` e reconstruir o pacote. Publicação do aplicativo Google e da extensão Firefox são processos distintos.
+Não apresente a integração como validada em uma conta real até confirmar login, criação da pasta, upload de mídia, atualização do CSV e retomada após expiração. O pacote oficial já inclui o Client ID público em `extension/config.json`. Isso automatiza a configuração, mas não muda o aplicativo Google de Teste para produção nem libera contas fora da lista autorizada. Publicação do aplicativo Google e da extensão Firefox são processos distintos.
 
 ## Referências técnicas
 

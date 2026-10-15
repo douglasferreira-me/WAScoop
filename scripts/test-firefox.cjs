@@ -57,15 +57,28 @@ async function checkBackground(driver, call, origin, panelTab) {
   await fs.writeFile("docs/firefox-background-result.json", JSON.stringify({ extensionVersion: JSON.parse(await fs.readFile("extension/manifest.json")).version, browser: (await driver.getCapabilities()).get("browserVersion"), fixture: "canal sintético local; API WPP simulada; não WhatsApp real", foreground: "página comum de pesquisa, sem painel da extensão", seconds: 80, whatsappVisibility: visibility, messages: state.job.count, media: state.job.mediaCount, mediaFailures: state.job.mediaFailures, lastMessageScheduledAfterSeconds: 65, passed: true }, null, 2));
   console.log("PASS: 80 segundos usando outra aba; 3 mensagens e 2 mídias capturadas com a conversa oculta, sem mudar o foco.");
 }
-async function checkDriveFetch(driver, origin) {
+async function checkDriveFetch(driver, origin, call) {
+  const bundled = JSON.parse(await fs.readFile("extension/config.json")).googleClientId;
+  let google = (await call("state")).state;
+  assert.ok(bundled); assert.equal(google.driveConfigured, true); assert.equal(google.googleClientSource, "bundled"); assert.equal(google.googleClientId, bundled);
+  const own = "fork-test.apps.googleusercontent.com";
+  assert.equal((await call("configure-google", { clientId: own })).ok, true);
+  google = (await call("state")).state; assert.equal(google.googleClientId, own); assert.equal(google.googleClientSource, "custom");
+  await driver.navigate().refresh(); await wait(600);
+  google = (await call("state")).state; assert.equal(google.googleClientId, own); assert.equal(await driver.executeScript("return document.getElementById('client-id').value"), own);
+  await driver.executeScript("document.getElementById('reset-google').click()");
+  await driver.wait(async () => (await call("state")).state.googleClientSource === "bundled", 5000);
+  google = (await call("state")).state; assert.equal(google.googleClientId, bundled); assert.equal(google.googleClientOverride, "");
+  assert.equal((await call("configure-google", { clientId: "invalid-client" })).ok, false); assert.equal((await call("state")).state.googleClientId, bundled);
+  assert.equal(await driver.executeScript("return document.getElementById('google-advanced').open"), false);
   await driver.executeScript("const script=document.createElement('script');script.type='module';script.src=browser.runtime.getURL('drive-fetch-fixture.js')+'?origin='+encodeURIComponent(arguments[0]);document.body.append(script);", origin);
   const text = await driver.wait(async () => driver.executeScript("return document.getElementById('scoop-drive-test-result')?.textContent || null"), 15000);
   const result = JSON.parse(text);
   assert.ok(!result.error, JSON.stringify(result));
   assert.match(result.originalError, /Window/); assert.equal(result.nativeFetchOK, true); assert.equal(result.connected, true);
   assert.equal(result.uploaded, result.updated); assert.ok(result.requests.some(r => r.method === "PATCH"));
-  await fs.writeFile("docs/firefox-drive-result.json", JSON.stringify({extensionVersion:JSON.parse(await fs.readFile("extension/manifest.json")).version,browser:(await driver.getCapabilities()).get("browserVersion"),fixture:"fetch nativo do Firefox; OAuth e endpoints Google simulados localmente; sem conta Google real",...result,passed:true},null,2));
-  console.log("PASS: erro Window reproduzido; fetch nativo corrigido; validação OAuth, pasta, upload e atualização do CSV aprovados com endpoints locais.");
+  await fs.writeFile("docs/firefox-drive-result.json", JSON.stringify({extensionVersion:JSON.parse(await fs.readFile("extension/manifest.json")).version,browser:(await driver.getCapabilities()).get("browserVersion"),fixture:"fetch nativo do Firefox; OAuth e endpoints Google simulados localmente; sem conta Google real",...result,bundledClientConfigured:true,customClientPersisted:true,restoredBundledClient:true,invalidOverrideRejected:true,passed:true},null,2));
+  console.log("PASS: Client ID incluído, substituição persistida e restauração aprovados; fetch nativo e OAuth/upload simulados aprovados.");
 }
 async function main() {
   if (!process.env.FIREFOX_BIN || !process.env.GECKODRIVER_BIN) throw new Error("Defina FIREFOX_BIN e GECKODRIVER_BIN para os binários oficiais da Mozilla.");
@@ -111,7 +124,7 @@ async function main() {
     await wait(600);
     const panelTab = await driver.getWindowHandle();
     const call = (type, extra = {}) => driver.executeAsyncScript((type, extra, done) => browser.runtime.sendMessage({ type, ...extra }).then(done, e => done({ ok: false, error: e.message })), type, extra);
-    if (process.env.SCOOP_DRIVE_ONLY === "1") { await checkDriveFetch(driver, origin); return; }
+    if (process.env.SCOOP_DRIVE_ONLY === "1") { await checkDriveFetch(driver, origin, call); return; }
     if (process.env.SCOOP_BACKGROUND_ONLY === "1") { await checkBackground(driver, call, origin, panelTab); return; }
     const emptyLog = await call("download-log"); assert.equal(emptyLog.downloaded,true); assert.equal(JSON.parse(emptyLog.text).collection,null);
     await wait(300); const inspected = await call("inspect");

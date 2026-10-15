@@ -102,3 +102,9 @@ Antes de distribuir um fork, ajuste nome, autor, site e ID em `extension/manifes
 A instalação permanente no Firefox comum depende de assinatura. Envie o pacote pelo [portal de extensões Mozilla](https://addons.mozilla.org/developers/), com os fontes e instruções de build quando solicitados. Revise [permissões e privacidade](PRIVACIDADE.md) e teste o pacote assinado antes de disponibilizá-lo.
 
 Preserve a licença **GPL-3.0** e a atribuição original a [douglasferreira](https://douglasferreira.me). zip.js usa BSD-3-Clause e WA-JS usa Apache-2.0 e @noble/hashes usa MIT; mantenha os arquivos de licença incluídos. A [logo](branding/README.md) e seus ícones ficam no repositório.
+
+### Client ID padrão e substituição para forks
+
+`extension/config.json` inclui apenas o identificador OAuth público `googleClientId`; não adicione `client_secret`, tokens nem arquivos de credenciais baixados do Google. O background resolve um único ID efetivo para estado e login: uma substituição em `browser.storage.local.googleClientId` tem prioridade sobre o padrão do pacote. A opção avançada de restaurar remove essa chave, sem apagar coletas, e exige nova conexão. A troca é recusada durante uma coleta no Drive ou envio em andamento.
+
+Um fork pode alterar `config.json` para distribuir seu próprio padrão e deve cadastrar o redirecionamento correspondente ao seu próprio ID de extensão. Criptografia com chave incluída no pacote não cria confidencialidade para esse identificador público. Tokens são obtidos após consentimento e ficam somente na memória. O Client ID incluído não remove a restrição de usuários de teste do aplicativo Google.

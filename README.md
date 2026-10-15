@@ -1,4 +1,4 @@
-> **Versão beta (de teste).** Estou providenciando uma versão assinada para publicar na loja de extensões do Firefox. Por enquanto, a instalação é temporária: siga o guia abaixo. **Google Drive experimental, em fase de teste e sem liberação pública. O acesso depende da configuração do aplicativo Google e fica restrito às contas cadastradas como usuários de teste. Para uso geral, utilize o ZIP local.**
+> **Versão beta (de teste).** Estou providenciando uma versão assinada para publicar na loja de extensões do Firefox. Por enquanto, a instalação é temporária: siga o guia abaixo. **Google Drive experimental, em fase de teste e sem liberação pública. O aplicativo Google já vem configurado; basta conectar uma conta cadastrada como usuário de teste. Para uso geral, utilize o ZIP local.**
 
 <p align="center">
   <img src="docs/branding/logo.png" width="128" alt="Whatsapp Scoop: balão de conversa sorridente com óculos de pesquisador">
@@ -14,7 +14,7 @@ Produzido por **[douglasferreira](https://douglasferreira.me)**. A ferramenta or
 
 Este é o **resumo**; o passo a passo completo está logo abaixo. Você não precisa saber programar.
 
-1. Baixe e descompacte o [pacote de teste](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.4.1-beta/whatsapp-scoop-0.4.1-temporario.zip).
+1. Baixe e descompacte o [pacote de teste](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.4.2-beta/whatsapp-scoop-0.4.2-temporario.zip).
 2. No Firefox, abra `about:debugging` → **Este Firefox** → **Carregar extensão temporária** e selecione `manifest.json` na pasta descompactada.
 3. Abra o grupo ou canal no WhatsApp Web, abra o painel **Whatsapp Scoop** e clique em **Iniciar coleta**. Marque **Incluir mídias** se quiser os arquivos.
 4. Ao terminar, salve e descompacte o ZIP. Abra `mensagens.csv` como uma planilha e conserve os demais arquivos junto dela. Se marcar a opção XLSX, também terá uma planilha pronta para análise.
@@ -25,7 +25,7 @@ Este é o **resumo**; o passo a passo completo está logo abaixo. Você não pre
 
 Use **Firefox para computador, versão 140 ou posterior**. Não é necessário instalar Python ou outros programas de desenvolvimento.
 
-1. **Baixe o pacote.** Clique em [whatsapp-scoop-0.4.1-temporario.zip](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.4.1-beta/whatsapp-scoop-0.4.1-temporario.zip). Normalmente ele será salvo na pasta **Downloads**. Use esse arquivo, e não o pacote de código-fonte ou o arquivo `.xpi`.
+1. **Baixe o pacote.** Clique em [whatsapp-scoop-0.4.2-temporario.zip](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.4.2-beta/whatsapp-scoop-0.4.2-temporario.zip). Normalmente ele será salvo na pasta **Downloads**. Use esse arquivo, e não o pacote de código-fonte ou o arquivo `.xpi`.
 2. **Descompacte o arquivo.** ZIP é um arquivo que reúne uma pasta e seus conteúdos. No Windows, clique com o botão direito e escolha **Extrair tudo**. No macOS, dê dois cliques no ZIP. Guarde a pasta extraída: você precisará dela nas próximas instalações.
 3. **Abra a página de instalação.** No Firefox, clique na barra de endereço, no alto da janela. Digite `about:debugging` e pressione **Enter**.
 4. **Escolha este navegador.** Clique em **Este Firefox**, à esquerda. Depois clique em **Carregar extensão temporária…**. Se o Firefox estiver em inglês, os nomes são **This Firefox** e **Load Temporary Add-on…**.
@@ -79,7 +79,7 @@ Para outros programas, abra `mensagens.csv` no Excel ou LibreOffice, ou importe 
 ### Monitorar somente mensagens novas
 
 1. Abra o canal e escolha **Monitorar novas mensagens de um canal** no painel. As mídias são incluídas automaticamente; o histórico anterior fica de fora.
-2. Escolha **ZIP no computador** e exporte manualmente ao pausar ou encerrar. O destino **Google Drive** é experimental e está restrito às contas cadastradas como usuários de teste no aplicativo Google; exige configuração prévia pelo mantenedor, conforme o [guia](docs/GOOGLE_DRIVE.md).
+2. Escolha **ZIP no computador** e exporte manualmente ao pausar ou encerrar. O destino **Google Drive** é experimental e está restrito às contas cadastradas como usuários de teste no aplicativo Google; o aplicativo já vem configurado e basta clicar em **Conectar ao Google Drive** e escolher sua conta.
 3. Clique em **Iniciar coleta** e deixe o canal carregado na aba do WhatsApp. **Você pode usar outras abas normalmente**, sem manter o WhatsApp selecionado. O painel mostra mensagens, mídias, espaço local e envios pendentes; fechar o painel não encerra a coleta.
 4. No Drive, uma pasta reúne as mídias e **um único `mensagens.csv`**, atualizado a cada minuto quando houver mudanças. **Sincronizar agora** antecipa o envio. XLSX continua opcional, gerado ao encerrar.
 
@@ -91,7 +91,7 @@ Se a internet ou a autorização Google falhar, a fila fica local; ao atingir o 
 
 **A integração com o Google Drive ainda não está liberada para o público geral.** Por enquanto, o aplicativo Google deve permanecer em modo **Teste**, com acesso apenas às contas adicionadas pelo mantenedor à lista de **Usuários de teste**. Instalar a extensão não libera automaticamente o login Google para qualquer pessoa.
 
-O código de envio está implementado, mas **login, redirecionamento e upload em uma conta Google real ainda precisam ser validados**. A configuração é feita pelo mantenedor; pesquisadores que utilizarem o ZIP não precisam criar projeto ou credenciais Google. O [guia de configuração](docs/GOOGLE_DRIVE.md) orienta os testes da integração. Não informe senha nem segredo do cliente à extensão.
+O código de envio está implementado, mas **login, redirecionamento e upload em uma conta Google real ainda precisam ser validados**. O Client ID público já vem incluído no pacote: o pesquisador não precisa criar projeto Google nem copiar credenciais, apenas conectar a própria conta. Quem usa ZIP não precisa de login Google. O [guia para mantenedores e forks](docs/GOOGLE_DRIVE.md) explica a configuração do aplicativo e a substituição opcional do ID em **Configurações avançadas · Google e forks**, incluindo **Restaurar padrão da extensão**. Não informe senha nem segredo do cliente à extensão.
 
 A futura liberação pública dependerá da validação do login e das exigências do Google. A assinatura e publicação da extensão na loja do Firefox são um processo separado.
 
