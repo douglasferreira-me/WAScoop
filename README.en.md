@@ -23,6 +23,30 @@ This is the **summary**; the full instructions follow below. You do not need pro
 
 **You must load the extension again after restarting Firefox. Export your collection before closing the browser.**
 
+## Partnerships
+
+In partnership with [Condado Lab](https://condadolab.org) and [OASIS — UFRJ](https://oasisufrj.org).
+
+<table>
+  <tr>
+    <td align="center" width="200">
+      <a href="https://condadolab.org"><img src="docs/branding/partners/condado-lab-completo.png" width="160" alt="Condado Lab"></a><br>
+      <a href="https://condadolab.org">Condado Lab</a>
+    </td>
+    <td align="center" width="200">
+      <a href="https://oasisufrj.org">
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcset="docs/branding/partners/oasis-dark.png">
+          <img src="docs/branding/partners/oasis-light.png" width="160" alt="OASIS — UFRJ">
+        </picture>
+      </a><br>
+      <a href="https://oasisufrj.org">OASIS — UFRJ</a>
+    </td>
+  </tr>
+</table>
+
+**Detailed installation and usage instructions follow below.**
+
 ## Install the test version: step by step
 
 Use **Firefox for desktop, version 140 or later**. You do not need Python or development tools.
@@ -126,25 +150,3 @@ In your methodology, record the version from the report, collection date, reques
 The extension uses JavaScript, HTML, and CSS to run in Firefox without a helper program; Python builds the packages. Collection combines scrolling and page reading with media downloads through the connected session using WA-JS.
 
 The [technical guide](docs/DESENVOLVIMENTO.md) (in Portuguese) covers setup, code organization, tests, packaging, and distribution. The project uses **GPL-3.0**, with separate licenses for bundled libraries.
-
-## Partnerships
-
-In partnership with [Condado Lab](https://condadolab.org) and [OASIS — UFRJ](https://oasisufrj.org).
-
-<table>
-  <tr>
-    <td align="center" width="200">
-      <a href="https://condadolab.org"><img src="docs/branding/partners/condado-lab-symbol.png" width="64" height="64" alt="Condado Lab"></a><br>
-      <a href="https://condadolab.org">Condado Lab</a>
-    </td>
-    <td align="center" width="200">
-      <a href="https://oasisufrj.org">
-        <picture>
-          <source media="(prefers-color-scheme: dark)" srcset="docs/branding/partners/oasis-dark.png">
-          <img src="docs/branding/partners/oasis-light.png" width="160" alt="OASIS — UFRJ">
-        </picture>
-      </a><br>
-      <a href="https://oasisufrj.org">OASIS — UFRJ</a>
-    </td>
-  </tr>
-</table>

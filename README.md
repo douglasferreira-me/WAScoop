@@ -14,7 +14,7 @@ Produzido por **[Douglas Ferreira](https://douglasferreira.me)**. A ferramenta o
 
 ## Resumo da explicação
 
-Este é o **resumo**; o passo a passo completo está logo abaixo. Você não precisa saber programar.
+Este é o **resumo**; o passo a passo completo está mais abaixo. Você não precisa saber programar.
 
 1. Baixe e descompacte o [pacote de teste](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.4.4-beta/whatsapp-scoop-0.4.4-temporario.zip).
 2. No Firefox, abra `about:debugging` → **Este Firefox** → **Carregar extensão temporária** e selecione `manifest.json` na pasta descompactada.
@@ -22,6 +22,30 @@ Este é o **resumo**; o passo a passo completo está logo abaixo. Você não pre
 4. Ao terminar, salve e descompacte o ZIP. Abra `mensagens.csv` como uma planilha e conserve os demais arquivos junto dela. Se marcar a opção XLSX, também terá uma planilha pronta para análise.
 
 **Ao fechar e reabrir o Firefox, será necessário carregar a extensão novamente. Exporte sua coleta antes de fechar o navegador.**
+
+## Parcerias
+
+Em parceria com [Condado Lab](https://condadolab.org) e [OASIS — UFRJ](https://oasisufrj.org).
+
+<table>
+  <tr>
+    <td align="center" width="200">
+      <a href="https://condadolab.org"><img src="docs/branding/partners/condado-lab-completo.png" width="160" alt="Condado Lab"></a><br>
+      <a href="https://condadolab.org">Condado Lab</a>
+    </td>
+    <td align="center" width="200">
+      <a href="https://oasisufrj.org">
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcset="docs/branding/partners/oasis-dark.png">
+          <img src="docs/branding/partners/oasis-light.png" width="160" alt="OASIS — UFRJ">
+        </picture>
+      </a><br>
+      <a href="https://oasisufrj.org">OASIS — UFRJ</a>
+    </td>
+  </tr>
+</table>
+
+**Mais abaixo estão as instruções completas de instalação e uso.**
 
 ## Passo a passo: instalar a versão de teste
 
@@ -126,25 +150,3 @@ Na metodologia, registre a versão indicada no relatório, data da coleta, perí
 A extensão usa JavaScript, HTML e CSS para funcionar no Firefox sem programa auxiliar; Python prepara os pacotes. A coleta combina rolagem e leitura da página com download de mídias pela sessão conectada, usando WA-JS. 
 
 O [guia técnico para forks](docs/DESENVOLVIMENTO.md) explica instalação do ambiente, organização do código, testes, empacotamento e distribuição. O projeto usa **GPL-3.0**, com licenças próprias para as bibliotecas incluídas.
-
-## Parcerias
-
-Em parceria com [Condado Lab](https://condadolab.org) e [OASIS — UFRJ](https://oasisufrj.org).
-
-<table>
-  <tr>
-    <td align="center" width="200">
-      <a href="https://condadolab.org"><img src="docs/branding/partners/condado-lab-symbol.png" width="64" height="64" alt="Condado Lab"></a><br>
-      <a href="https://condadolab.org">Condado Lab</a>
-    </td>
-    <td align="center" width="200">
-      <a href="https://oasisufrj.org">
-        <picture>
-          <source media="(prefers-color-scheme: dark)" srcset="docs/branding/partners/oasis-dark.png">
-          <img src="docs/branding/partners/oasis-light.png" width="160" alt="OASIS — UFRJ">
-        </picture>
-      </a><br>
-      <a href="https://oasisufrj.org">OASIS — UFRJ</a>
-    </td>
-  </tr>
-</table>
