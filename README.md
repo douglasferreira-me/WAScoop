@@ -80,12 +80,12 @@ Para outros programas, abra `mensagens.csv` no Excel ou LibreOffice, ou importe 
 
 1. Abra o canal e escolha **Monitorar novas mensagens de um canal** no painel. As mídias são incluídas automaticamente; o histórico anterior fica de fora.
 2. Escolha **Google Drive** e conecte sua conta, após seguir o [guia de configuração](docs/GOOGLE_DRIVE.md). Também é possível escolher ZIP e exportar manualmente ao pausar ou encerrar.
-3. Clique em **Iniciar coleta** e mantenha o canal aberto. O painel mostra mensagens, mídias, espaço local e envios pendentes. Fechar o painel não encerra a coleta.
+3. Clique em **Iniciar coleta** e deixe o canal carregado na aba do WhatsApp. **Você pode usar outras abas normalmente**, sem manter o WhatsApp selecionado. O painel mostra mensagens, mídias, espaço local e envios pendentes; fechar o painel não encerra a coleta.
 4. No Drive, uma pasta reúne as mídias e **um único `mensagens.csv`**, atualizado a cada minuto quando houver mudanças. **Sincronizar agora** antecipa o envio. XLSX continua opcional, gerado ao encerrar.
 
 As mensagens ficam no disco do Firefox, sem manter todo o corpus na memória. O limite local de mídias é **512 MB**, ajustável antes de iniciar. Você pode marcar **Liberar cópias locais após confirmação no Drive**: isso reduz o espaço usado, mas o ZIP passa a conter referências às mídias remotas já liberadas. Desmarcado, preserva as cópias locais para um ZIP completo. Arquivos individuais acima de 256 MB pausam o monitoramento.
 
-Se a internet ou a autorização Google falhar, a fila fica local; ao atingir o limite, a captura pausa. Reconecte e use **Sincronizar agora**, depois **Continuar**. Se estiver preservando cópias locais e atingir o limite, encerre e exporte antes de iniciar outra coleta. **O monitoramento depende do navegador, computador e canal abertos; pausas e suspensão podem deixar lacunas.** Interações são atualizadas apenas para mensagens recentes ainda carregadas.
+Se a internet ou a autorização Google falhar, a fila fica local; ao atingir o limite, a captura pausa. Reconecte e use **Sincronizar agora**, depois **Continuar**. Se estiver preservando cópias locais e atingir o limite, encerre e exporte antes de iniciar outra coleta. **O monitoramento depende do navegador e computador funcionando, com a aba do WhatsApp carregada no canal escolhido.** Fechar, recarregar ou descartar essa aba, suspender o computador e perder a sessão podem deixar lacunas. O Firefox pode reduzir a frequência de verificações em abas de segundo plano; não há garantia de atualização instantânea. Interações são atualizadas apenas para mensagens recentes ainda carregadas.
 
 ### Google Drive
 

@@ -19,11 +19,49 @@ window.WPP={isReady:true,chat:{getActiveChat:()=>({id:{_serialized:'123@newslett
 render();box.scrollTop=box.scrollHeight;box.addEventListener('scroll',()=>{if(start>0&&box.scrollTop<900){start=Math.max(0,start-10);render();box.scrollTop=start?1100:0;}});
 </script></body></html>`;
 const wait = ms => new Promise(r => setTimeout(r, ms));
+async function checkBackground(driver, call, origin, panelTab) {
+  // The WhatsApp fixture is never selected after activation. Posts arrive while hidden,
+  // including after the browser has had time to apply background timer throttling.
+  const inspected = await call("inspect");
+  const tabId = inspected.conversation.tabId;
+  await driver.executeAsyncScript((tabId, url, done) => browser.tabs.update(tabId, { url }).then(() => done(true)), tabId, origin + "/channel");
+  await wait(1500);
+  assert.equal((await call("start", { options: { mode: "monitor", destination: "zip", media: true, localLimitMB: 128 } })).ok, true);
+  await driver.executeAsyncScript((tabId, done) => browser.scripting.executeScript({ target: { tabId }, world: "MAIN", func: () => {
+    window.backgroundVisibility = [document.visibilityState];
+    document.addEventListener("visibilitychange", () => window.backgroundVisibility.push(document.visibilityState));
+    const active = WPP.chat.getActiveChat, baseline = active().msgs.getModelsArray(), added = [];
+    WPP.chat.getActiveChat = () => { const chat = active(); chat.msgs.getModelsArray = () => [...baseline, ...added]; return chat; };
+    WPP.chat.downloadMedia = async id => new Blob(["ORIGINAL-" + id], { type: id === "hidden-audio" ? "audio/ogg" : "image/png" });
+    for (const [delay, id, serverId, type] of [[2000, "hidden-text", 236, "chat"], [15000, "hidden-image", 237, "image"], [65000, "hidden-audio", 238, "audio"]]) {
+      setTimeout(() => added.push({ id: { id, toString: () => id }, serverId, type, t: Date.now() / 1000, body: type === "chat" ? "Mensagem com WhatsApp em segundo plano" : "", caption: type === "image" ? "Foto em segundo plano" : "", mediaData: type === "chat" ? null : {} }), delay);
+    }
+    return document.hidden;
+  } }).then(results => done(results[0].result)), tabId).then(hidden => assert.equal(hidden, true));
+  await driver.switchTo().newWindow("tab"); await driver.get(origin + "/research");
+  const foregroundTab = await driver.getWindowHandle();
+  for (let elapsed = 0; elapsed < 80; elapsed += 10) {
+    await driver.executeScript("document.querySelector('input').value=arguments[0]; return document.visibilityState", "Anotação " + elapsed).then(v => assert.equal(v, "visible"));
+    await wait(10000);
+    assert.equal(await driver.getWindowHandle(), foregroundTab);
+    assert.equal(await driver.getCurrentUrl(), origin + "/research");
+    console.log("Outra aba ativa:", elapsed + 10, "segundos");
+  }
+  await driver.switchTo().window(panelTab);
+  const state = (await call("state")).state;
+  assert.equal(state.job.status, "running", JSON.stringify(state));
+  assert.equal(state.job.count, 3); assert.equal(state.job.mediaCount, 2); assert.equal(state.job.mediaFailures, 0);
+  const visibility = await driver.executeAsyncScript((tabId, done) => browser.scripting.executeScript({ target: { tabId }, world: "MAIN", func: () => ({ hidden: document.hidden, states: window.backgroundVisibility }) }).then(results => done(results[0].result)), tabId);
+  assert.equal(visibility.hidden, true); assert.ok(visibility.states.every(value => value === "hidden"));
+  assert.equal((await call("stop")).ok, true);
+  await fs.writeFile("docs/firefox-background-result.json", JSON.stringify({ extensionVersion: JSON.parse(await fs.readFile("extension/manifest.json")).version, browser: (await driver.getCapabilities()).get("browserVersion"), fixture: "canal sintético local; API WPP simulada; não WhatsApp real", foreground: "página comum de pesquisa, sem painel da extensão", seconds: 80, whatsappVisibility: visibility, messages: state.job.count, media: state.job.mediaCount, mediaFailures: state.job.mediaFailures, lastMessageScheduledAfterSeconds: 65, passed: true }, null, 2));
+  console.log("PASS: 80 segundos usando outra aba; 3 mensagens e 2 mídias capturadas com a conversa oculta, sem mudar o foco.");
+}
 async function main() {
   if (!process.env.FIREFOX_BIN || !process.env.GECKODRIVER_BIN) throw new Error("Defina FIREFOX_BIN e GECKODRIVER_BIN para os binários oficiais da Mozilla.");
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "wascoop-test-")), source = path.join(root, "extension"), downloads = path.join(root, "downloads");
   await fs.mkdir(downloads); await fs.cp("extension", source, { recursive: true });
-  const server = http.createServer((req, res) => { res.writeHead(200, { "Content-Type": "text/html;charset=utf-8" }); res.end(req.url.includes("channel") ? fixture.replaceAll("Grupo sintético", "Canal sintético").replace("<header>", "<header><span>100 seguidores</span>") : fixture); });
+  const server = http.createServer((req, res) => { res.writeHead(200, { "Content-Type": "text/html;charset=utf-8" }); res.end(req.url === "/research" ? '<!doctype html><html lang="pt-BR"><meta charset="utf-8"><h1>Pesquisa em outra aba</h1><input aria-label="Anotações"><p>Esta página permanece ativa durante o teste.</p></html>' : req.url.includes("channel") ? fixture.replaceAll("Grupo sintético", "Canal sintético").replace("<header>", "<header><span>100 seguidores</span>") : fixture); });
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
   const origin = `http://127.0.0.1:${server.address().port}`;
   const manifest = JSON.parse(await fs.readFile(path.join(source, "manifest.json")));
@@ -56,6 +94,7 @@ async function main() {
     await wait(600);
     const panelTab = await driver.getWindowHandle();
     const call = (type, extra = {}) => driver.executeAsyncScript((type, extra, done) => browser.runtime.sendMessage({ type, ...extra }).then(done, e => done({ ok: false, error: e.message })), type, extra);
+    if (process.env.SCOOP_BACKGROUND_ONLY === "1") { await checkBackground(driver, call, origin, panelTab); return; }
     const emptyLog = await call("download-log"); assert.equal(emptyLog.downloaded,true); assert.equal(JSON.parse(emptyLog.text).collection,null);
     await wait(300); const inspected = await call("inspect");
     assert.equal(inspected.ok, true, JSON.stringify(inspected));

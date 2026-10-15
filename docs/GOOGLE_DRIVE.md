@@ -26,7 +26,7 @@ Uma pasta por monitoramento contém `mensagens.csv`, `midias/` e `.system/` para
 
 As mensagens ficam no IndexedDB do Firefox. As mídias passam por armazenamento local antes do envio. Se você ativar a liberação das cópias locais, o arquivo só é liberado após o Drive confirmar o upload; o índice mantém o ID remoto, caminho, tamanho e hash. Nesse caso, o ZIP local terá referências às mídias remotas em vez das cópias liberadas. Para conservar também um ZIP completo, mantenha as cópias locais e acompanhe o espaço usado.
 
-Uma fila limitada preserva os envios pendentes durante falhas de internet ou autorização. Se atingir o limite configurado, a captura pausa para evitar descarte. Não há promessa de monitoramento quando o computador dorme, o navegador fecha ou o canal é trocado. Interrupções e possíveis lacunas precisam constar na metodologia.
+Uma fila limitada preserva os envios pendentes durante falhas de internet ou autorização. Se atingir o limite configurado, a captura pausa para evitar descarte. Você pode usar outras abas e fechar o painel da extensão, mantendo a aba do WhatsApp carregada no canal escolhido. Não há promessa de monitoramento quando o computador dorme, o navegador fecha, a aba é descartada ou o canal é trocado. Interrupções e possíveis lacunas precisam constar na metodologia.
 
 ## Login e limitações
 

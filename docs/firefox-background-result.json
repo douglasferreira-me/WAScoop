@@ -1,0 +1,18 @@
+{
+  "extensionVersion": "0.4.0",
+  "browser": "153.5.0",
+  "fixture": "canal sintético local; API WPP simulada; não WhatsApp real",
+  "foreground": "página comum de pesquisa, sem painel da extensão",
+  "seconds": 80,
+  "whatsappVisibility": {
+    "hidden": true,
+    "states": [
+      "hidden"
+    ]
+  },
+  "messages": 3,
+  "media": 2,
+  "mediaFailures": 0,
+  "lastMessageScheduledAfterSeconds": 65,
+  "passed": true
+}

@@ -28,6 +28,16 @@ Use conversas sob seu controle e não comite dados pessoais. Instale temporariam
 5. Simule o limite local e arquivo acima de 256 MiB: a captura deve pausar sem avançar o cursor da mensagem bloqueada. Exporte o parcial; registre a possível lacuna.
 6. Troque de canal, recarregue, feche o navegador e suspenda o computador. Nenhum desses casos comprova continuidade; confirme aviso, preservação e relato de interrupção.
 
+## Conversa em segundo plano
+
+Para executar somente a conferência com uma página comum ativa:
+
+```sh
+SCOOP_BACKGROUND_ONLY=1 FIREFOX_BIN=/caminho/para/firefox GECKODRIVER_BIN=/caminho/para/geckodriver npm run test:firefox
+```
+
+O teste mantém uma página comum ativa por 80 segundos e programa três mensagens na API sintética da conversa oculta, incluindo foto e áudio. A última chega após 65 segundos, além do período inicial de possíveis restrições de temporizadores. Confere `document.hidden`, captura das mídias, contagens e ausência de mudança do foco para a conversa. O resultado fica em `firefox-background-result.json`. Não desativa as restrições de segundo plano do navegador e não comprova operação com a aba descarregada ou computador suspenso.
+
 ## Estado de validação
 
 Resultados desta implementação serão registrados em `docs/VALIDACAO.md`. Testes sintéticos e lint não substituem validação em uma conta WhatsApp real. O Drive não é validado ponta a ponta sem Client ID e conta Google autorizada.
