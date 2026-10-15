@@ -31,6 +31,8 @@ A página fornece mensagens conforme a conversa é rolada. O coletor registra os
 | `extension/lib/store.js` | Persistência e leitura paginada no IndexedDB. |
 | `extension/lib/export.js` | CSV, XLSX, ZIP, índice de mídias e relatório. |
 | `extension/lib/workbook.js` | XLSX em SpreadsheetML, com estilos, filtros, datas e contagens tipadas; usa a biblioteca ZIP já incluída. |
+| `extension/lib/drive-sync.js` | Fila persistida, confirmação de mídia e atualização do mesmo CSV no monitoramento. |
+| `extension/lib/hash.js` | SHA-256 incremental em blocos de 1 MiB com @noble/hashes. |
 | `extension/lib/drive.js` | Autorização Google e uploads retomáveis. |
 | `extension/lib/diagnostics.js` | Registro local de diagnóstico com campos permitidos e remoção de informações sensíveis. |
 | `extension/background.js` | Coordenação dos módulos, comandos e estado da coleta. |
@@ -62,6 +64,16 @@ O build substitui um caminho Node baseado em `eval(require)` do bundle upstream,
 - `link_mensagem` guarda o permalink da publicação, separado de `links` (URLs do conteúdo). Em canais, a API combina o código de convite do canal com `MsgModel.serverId` apenas quando o ID da mensagem é único na conversa ativa. Sem metadados confirmados, mantém o campo vazio; não usa o ID interno como número da publicação.
 - Reações são uma observação temporal. Preserve a distinção entre total exato, aproximado e indisponível; ausência não equivale a zero.
 
+### Monitoramento e sincronização
+
+`options.mode` é `history` (padrão) ou `monitor` (um canal, mídias obrigatórias). Ao ativar, o coletor posiciona a conversa nas publicações recentes; a API confirma `chat.id` de newsletter e fixa o maior `serverId` como linha de base. Somente IDs posteriores entram no monitoramento. Cada consulta retorna até 100 mensagens novas e revisita até 50 recentes da coleta para atualizar campos disponíveis. `MutationObserver` sinaliza mudanças e uma consulta a cada cinco segundos cobre atualizações sem mutação do DOM. Não há um conjunto de IDs do corpus inteiro no coletor de monitoramento.
+
+O IndexedDB v2 acrescenta índice composto `[job, message.id]` e store `uploads`. A migração mantém as stores existentes. A contagem cresce somente quando um registro é criado; atualizações e correções preservam MID e arquivos. Cursor só avança após persistência do lote. Falta de espaço pausa sem avançar a mensagem bloqueada. O teto padrão de mídias locais é 512 MiB (128–4096 configurável), com limite por arquivo de 256 MiB. O corpus textual permanece no disco; a cota física do perfil continua aplicável.
+
+`DriveSync` envia mídias em série e guarda sessões retomáveis. Cada CSV/índice/relatório tem um ID remoto estável; versões posteriores usam PATCH no mesmo arquivo. O payload de uma sessão pendente é persistido antes do envio e nunca trocado durante a retomada. A geração do retrato pausa brevemente o coletor e espera a transferência atual, mantendo CSV e relatório coerentes; os uploads retomam com a captura liberada. Um alarme de um minuto e os lotes disparam a sincronização; não gere XLSX em cada ciclo. A liberação de Blob local é opcional e somente ocorre após confirmação de ID remoto. ZIPs com cópias liberadas incluem aviso e referências remotas no índice.
+
+A conta é identificada por `about.user.permissionId`, sem escopo adicional. A pasta permanece vinculada à conta original. Renovação silenciosa usa `interactive:false`; falha deixa fila e aviso, sem abrir consentimento automaticamente. Desconectar/revogar bloqueia envios e preserva a captura até o limite. Tokens nunca vão para IndexedDB. Sessão encerrada ou página recarregada exige exportar o parcial e iniciar outra coleta; não prometa continuidade durante fechamento, suspensão ou perda de janela histórica na sessão WhatsApp.
+
 ## Validar antes de distribuir
 
 Execute os testes, build e lint após mudanças. Para testar a extensão no navegador com fixtures locais e perfil isolado:
@@ -72,7 +84,7 @@ FIREFOX_BIN=/caminho/para/firefox GECKODRIVER_BIN=/caminho/para/geckodriver npm 
 
 Instale previamente o geckodriver e substitua os caminhos pelos executáveis locais. Esse teste usa uma API simulada: não comprova compatibilidade com uma sessão WhatsApp real. Siga o [roteiro de testes manuais](TESTES.md) em grupo e canal sob seu controle, comparando CSV, mídias, referências, pausas e exportações parciais. Registre limites em [VALIDACAO.md](VALIDACAO.md).
 
-A exportação direta para o Drive está em implementação e validação; exige cliente Google e redirecionamento reais. Siga [GOOGLE_DRIVE.md](GOOGLE_DRIVE.md); não o anuncie como operacional sem validar login e upload. O fluxo OAuth atual é legado e desaconselhado pelo Google para novas aplicações. Tokens ficam somente na sessão; uploads usam blocos de 1 MiB e até quatro tentativas por requisição.
+O envio direto ao Drive está implementado para teste; a validação ponta a ponta exige cliente Google e redirecionamento reais. Siga [GOOGLE_DRIVE.md](GOOGLE_DRIVE.md); não o anuncie como operacional sem validar login e upload. O fluxo OAuth atual é legado e desaconselhado pelo Google para novas aplicações. Tokens ficam somente na sessão; uploads usam blocos de 1 MiB e até quatro tentativas por requisição.
 
 ## Empacotar e publicar seu fork
 
@@ -89,4 +101,4 @@ Antes de distribuir um fork, ajuste nome, autor, site e ID em `extension/manifes
 
 A instalação permanente no Firefox comum depende de assinatura. Envie o pacote pelo [portal de extensões Mozilla](https://addons.mozilla.org/developers/), com os fontes e instruções de build quando solicitados. Revise [permissões e privacidade](PRIVACIDADE.md) e teste o pacote assinado antes de disponibilizá-lo.
 
-Preserve a licença **GPL-3.0** e a atribuição original a [douglasferreira](https://douglasferreira.me). zip.js usa BSD-3-Clause e WA-JS usa Apache-2.0; mantenha os arquivos de licença incluídos. A [logo](branding/README.md) e seus ícones ficam no repositório.
+Preserve a licença **GPL-3.0** e a atribuição original a [douglasferreira](https://douglasferreira.me). zip.js usa BSD-3-Clause e WA-JS usa Apache-2.0 e @noble/hashes usa MIT; mantenha os arquivos de licença incluídos. A [logo](branding/README.md) e seus ícones ficam no repositório.

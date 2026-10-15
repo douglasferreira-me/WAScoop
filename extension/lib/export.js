@@ -29,14 +29,15 @@ export function xlsxBlob(store, job, progress) {
 export async function reportFiles(store, job) {
   const index = [];
   for await (const row of store.records("media", job.key)) {
-    if (row.complete) index.push({ midia_id: row.id || "", mensagem_id: row.messageId, arquivo: row.path, bytes: row.size, mime: row.mime, sha256: row.sha256, origem_captura: row.source || "desconhecida", drive_id: row.driveId || "", upload: row.uploadError || (row.driveId ? "enviado" : "local") });
+    if (row.complete) index.push({ midia_id: row.id || "", mensagem_id: row.messageId, arquivo: row.path, bytes: row.size, mime: row.mime, sha256: row.sha256, origem_captura: row.source || "desconhecida", drive_id: row.driveId || "", drive_url: row.driveId ? `https://drive.google.com/file/d/${row.driveId}/view` : "", copia_local_liberada: !!row.localReleased, upload: row.uploadError || (row.driveId ? "enviado" : "local") });
   }
   let incompleteCount = 0;
   for await (const row of store.records("messages", job.key)) if (C.assessCapture(row.message).status_captura === "incompleta") incompleteCount++;
   const report = {
     ferramenta: "Whatsapp Scoop", versao: browser.runtime.getManifest().version, autor: "douglasferreira", site: "https://douglasferreira.me",
     conversa: job.conversation.title, tipo: job.conversation.type, inicio_coleta: job.startedAt, fim_coleta: job.finishedAt || null,
-    estado: job.status, motivo_termino: job.reason || "coleta_em_andamento", escopo: "histórico acessível à sessão WhatsApp Web, sem garantia de integralidade",
+    estado: job.status, motivo_termino: job.reason || "coleta_em_andamento", modo: job.options.mode || "history", escopo: job.options.mode === "monitor" ? "mensagens novas observadas após ativação, sem garantia de captura durante interrupções" : "histórico acessível à sessão WhatsApp Web, sem garantia de integralidade",
+    monitoramento: job.options.mode === "monitor" ? { ultima_verificacao: job.lastCheck || null, ultima_sincronizacao: job.lastSync || null, midias_pendentes: job.pendingUploads || 0, bytes_locais: job.localBytes || 0, limite_local_mb: job.options.localLimitMB, canal_id: job.monitorChatId, cursor: job.monitorCursor } : null,
     intervalo_solicitado: { inicio: job.options.start || null, fim: job.options.end || null }, periodo_observado: { inicio: job.oldest || null, fim: job.newest || null },
     mensagens: job.count, mensagens_incompletas: incompleteCount, qualidade_metadados: incompleteCount ? "com_pendencias" : "sem_pendencias_identificadas", midias_obtidas: job.mediaCount, midias_com_falha: job.mediaFailures, bytes: job.bytes,
     pseudonimizacao: job.options.pseudonymize ? "identificadores dos remetentes; texto e mídia não são anonimizados" : "não aplicada",
@@ -58,11 +59,12 @@ export async function zipBlob(store, job, progress = () => {}, workbookProgress 
   try {
     await writer.add("mensagens.csv", csvStream(store, job), { level: 0, lastModDate: timestamp });
     if (job.options.workbook) await add("mensagens.xlsx", await xlsxBlob(store, job, workbookProgress));
-    let n = 0;
+    let n = 0, remote = 0;
     for await (const row of store.records("media", job.key)) {
       if (!row.complete) continue;
-      await add(row.path, row.blob); progress(++n);
+      if (row.blob) { await add(row.path, row.blob); progress(++n); } else if (row.driveId) remote++; else throw new Error("Mídia sem cópia local e sem confirmação no Drive.");
     }
+    if (remote) await add("MIDIAS_NO_DRIVE.txt", new Blob([`${remote} mídia(s) tiveram suas cópias locais liberadas após envio ao Drive. Consulte .system/indice_midias.json: cada MID do CSV tem drive_url e drive_id. Este ZIP não contém essas mídias.\nPasta: ${job.driveLink || ""}`]));
     const files = await reportFiles(store, job);
     await add(".system/indice_midias.json", files.index); await add(".system/relatorio_coleta.json", files.report);
     return await writer.close();

@@ -1,3 +1,5 @@
+import { hashBlob } from "./lib/hash.js";
+import { DriveSync } from "./lib/drive-sync.js";
 import { ApiMedia } from "./lib/api-media.js";
 import { DiagnosticLog, downloadDiagnostic, jobSummary } from "./lib/diagnostics.js";
 import { Store } from "./lib/store.js";
@@ -17,6 +19,29 @@ const pendingMedia = new Map(), downloadUrls = new Map();
 const config = fetch(browser.runtime.getURL("config.json")).then(r => r.json());
 const now = () => new Date().toISOString();
 const serial = new Map();
+const liveSync = new DriveSync(store, drive, save, async build => {
+  const running = job?.status === "running" && !exportBusy;
+  if (running) await collector("pause");
+  if (["running", "paused"].includes(job?.status)) {
+    try { await collector("settle"); }
+    catch (e) { if (pendingMedia.size) throw e; diagnostics.record("collector_unavailable_at_sync", {}, e); }
+  }
+  try { return await build(); }
+  finally { if (running && job?.status === "running") await collector("resume"); }
+});
+let nextSync = 0;
+function isMonitor() { return job?.options.mode === "monitor"; }
+async function syncLive(force = false, final = false) {
+  if (!isMonitor() || job.options.destination !== "drive" || !job.driveFolder) return;
+  if (!force && (Date.now() < nextSync || exportBusy)) return;
+  nextSync = Date.now() + 60000;
+  const active = job;
+  try { job.uploading = true; await publish(); await liveSync.run(active, { force, final }); }
+  catch (e) { if (job === active) { job.uploadNotice = e.message; diagnostics.record("drive_sync_failed", { operation: "continuous_sync" }, e); await save(); } if (force) throw e; }
+  finally { if (job === active) { job.uploading = false; await save(); } }
+}
+browser.alarms.create("scoop-drive-sync", { periodInMinutes: 1 });
+browser.alarms.onAlarm.addListener(alarm => { if (alarm.name === "scoop-drive-sync" && job && ["running", "paused"].includes(job.status)) syncLive(); });
 function enqueue(id, action) {
   const next = (serial.get(id) || Promise.resolve()).catch(() => {}).then(action);
   serial.set(id, next); next.finally(() => { if (serial.get(id) === next) serial.delete(id); }).catch(() => {}); return next;
@@ -57,15 +82,36 @@ function assertOptions(options) {
   if (!["zip", "drive"].includes(options.destination)) throw new Error("Destino inválido.");
 }
 async function start(options) {
+  if (liveSync.busy) throw new Error("Aguarde o envio ao Drive terminar antes de iniciar outra coleta.");
   if (exportBusy || (job && ["running", "paused", "stopping"].includes(job.status))) throw new Error("Encerre a coleta atual antes de iniciar outra.");
+  if (options.mode === "monitor") { options.start = ""; options.end = ""; }
   assertOptions(options);
+  options.mode ||= "history";
+  if (!["history", "monitor"].includes(options.mode)) throw new Error("Modo inválido.");
+  if (options.mode === "monitor") {
+    options.media = true; options.start = ""; options.end = "";
+    options.localLimitMB = Number(options.localLimitMB || 512);
+    if (!Number.isInteger(options.localLimitMB) || options.localLimitMB < 128 || options.localLimitMB > 4096) throw new Error("Limite local deve ficar entre 128 e 4096 MB.");
+  }
+  if (options.mode !== "monitor") options.releaseUploadedMedia = false;
   const conversation = await inspect(); if (!conversation) throw new Error("Abra um grupo ou canal no WhatsApp Web e recarregue a página após instalar a extensão.");
+  if (options.mode === "monitor" && conversation.type !== "canal") throw new Error("O monitoramento está disponível para um canal por vez.");
   if (options.destination === "drive" && !drive.connected()) throw new Error("Conecte ao Google Drive antes de iniciar.");
   const key = crypto.randomUUID();
   pendingMedia.clear();
-  job = { key, tabId: conversation.tabId, conversation, options, startedAt: now(), status: "running", phase: "Coletando histórico", count: 0, mediaCount: 0, mediaFailures: 0, bytes: 0, failures: [], notes: [], oldest: null, newest: null };
+  job = { key, tabId: conversation.tabId, conversation, options, startedAt: now(), status: "running", phase: options.mode === "monitor" ? "Monitorando novas mensagens" : "Coletando histórico", revision: 0, localBytes: 0, pendingUploads: 0, count: 0, mediaCount: 0, mediaFailures: 0, bytes: 0, failures: [], notes: [], oldest: null, newest: null };
+  if (options.mode === "monitor") {
+    try {
+      await apiMedia.prepare(job.tabId);
+      await collector("monitor-position");
+      const baseline = await apiMedia.execute(job.tabId, "monitor", { title: conversation.title });
+      job.monitorBaseline = baseline.baseline; job.monitorCursor = baseline.cursor; job.monitorChatId = baseline.chatId;
+      job.notes.push("Monitoramento iniciado após as mensagens já carregadas. Não inclui histórico anterior; mensagens recebidas durante interrupções podem não ser recuperadas.");
+    } catch (e) { job.status = "interrupted"; job.notice = e.message; await save(); throw e; }
+  }
   if (options.destination === "drive") {
     try {
+      job.driveAccount = drive.account;
       const folder = await drive.folder(`Whatsapp Scoop - ${C.safeName(conversation.title)} - ${job.startedAt.slice(0, 10)}`);
       job.driveFolder = folder.id; job.driveLink = folder.webViewLink || `https://drive.google.com/drive/folders/${folder.id}`;
       if (options.media) job.driveMediaFolder = (await drive.folder("midias", folder.id)).id;
@@ -91,9 +137,13 @@ async function uploadMedia(record) {
 }
 async function resume() {
   if (!job || job.status !== "paused") throw new Error("Nenhuma coleta pausada.");
-  if (job.options.destination === "drive") {
+  if (job.options.destination === "drive" && !isMonitor()) {
     if (!drive.connected()) throw new AuthRequired("Reconecte ao Google Drive.");
     for await (const record of store.records("media", job.key)) if (record.complete && !record.driveId) await uploadMedia(record);
+  }
+  if (isMonitor()) {
+    if (job.localBytes >= job.options.localLimitMB * 1024 * 1024) throw new Error("Libere espaço sincronizando as mídias ou encerre e exporte a coleta.");
+    job.notes.push(`Monitoramento retomado em ${now()}; pode haver lacunas durante a pausa.`);
   }
   diagnostics.record("collection_resumed", jobSummary(job));
   await collector("resume"); job.status = "running"; job.notice = ""; await save();
@@ -106,8 +156,16 @@ async function processBatch(message) {
   const metadataStatuses = {};
   for (let m of message.messages) {
     const candidate = m._repair && m._repairKey ? await store.get("messages", m._repairKey) : null;
-    const previous = m._repair ? candidate?.job === job.key && candidate.message.id === m.id ? candidate : await store.findMessage(job.key, m.id) : null;
-    if (previous) m = C.mergeCapture(previous.message, m);
+    const previous = m._repair || isMonitor() ? candidate?.job === job.key && candidate.message.id === m.id ? candidate : await store.findMessage(job.key, m.id) : null;
+    if (previous) {
+      const captured = m;
+      m = C.mergeCapture(previous.message, m);
+      if (isMonitor() && captured.midias?.length && !previous.message.midias?.length) { m.midias = captured.midias; m.midias_ids = captured.midias_ids; m.status_midia = captured.status_midia; }
+      if (isMonitor()) {
+        const comparable = value => JSON.stringify(C.columns.filter(k => k !== "interacoes_observadas_em").map(k => value[k] ?? ""));
+        if (comparable(m) === comparable(previous.message)) continue;
+      }
+    }
     else m = C.assessCapture(m);
     const sort = m.data_hora || "9999-sem-data";
     const key = `${job.key}:${sort}:${m.id}`;
@@ -115,6 +173,7 @@ async function processBatch(message) {
     await store.replaceMessage(previous?.key, { key, job: job.key, message: m });
     metadataStatuses[m.id] = { key, status_captura: m.status_captura, campos_ausentes: m.campos_ausentes };
     if (!previous) job.count++;
+    job.revision = (job.revision || 0) + 1;
     job.incompleteCount += Number(m.status_captura === "incompleta") - Number(previous?.message.status_captura === "incompleta");
     if (previous) job.failures = job.failures.filter(f => !(f.etapa === "metadados" && f.mensagem_id === m.id));
     if (m.status_captura === "incompleta") job.failures.push({ mensagem_id: m.id, etapa: "metadados", campos_ausentes: m.campos_ausentes, erro: "Campos indisponíveis após tentativas automáticas; coleta continuou." });
@@ -129,36 +188,45 @@ async function processBatch(message) {
   else if (job.notice?.includes("campos pendentes")) job.notice = "";
   diagnostics.record("batch_saved", { batchSize: message.messages.length, messages: job.count, mediaFailures: job.mediaFailures });
   job.unknownDates = message.unknownDates; job.fallbackIds ||= message.fallbackIds;
-  await save(); return { ok: true, paused: job.status === "paused", metadataStatuses };
+  if (isMonitor()) { job.lastCheck = now(); if (Number.isSafeInteger(message.cursor)) job.monitorCursor = Math.max(job.monitorCursor, message.cursor); }
+  await save();
+  if (isMonitor()) setTimeout(() => syncLive(), 0);
+  return { ok: true, paused: job.status === "paused", metadataStatuses };
 }
 async function mediaStart(m) {
   if (pendingMedia.size >= 1) throw new Error("Transferência de mídia já em andamento.");
   if (!Number.isSafeInteger(m.size) || m.size < 1) throw new Error("Tamanho de mídia inválido.");
+  if (isMonitor() && (m.size > 256 * 1024 * 1024 || (job.localBytes || 0) + m.size > job.options.localLimitMB * 1024 * 1024)) {
+    await pause("Limite local de mídias atingido ou arquivo maior que 256 MB. Sincronize, libere espaço ou encerre com exportação parcial; a mensagem atual não foi descartada.");
+    const e = new Error(job.notice); e.capacity = true; throw e;
+  }
   pendingMedia.set(m.mediaId, { ...m, parts: [], received: 0 }); return { ok: true };
 }
 async function mediaChunk(m) {
   const p = pendingMedia.get(m.mediaId); if (!p || m.offset !== p.received) throw new Error("Transferência de mídia fora de ordem.");
   const raw = atob(m.data), bytes = Uint8Array.from(raw, c => c.charCodeAt(0));
   if (bytes.length > 256 * 1024 || p.received + bytes.length > p.size) throw new Error("Bloco de mídia inválido.");
-  p.parts.push(bytes); p.received += bytes.length; return { ok: true };
+  p.parts.push(new Blob([bytes])); p.received += bytes.length; return { ok: true };
 }
 async function mediaEnd(m) {
   const p = pendingMedia.get(m.mediaId); pendingMedia.delete(m.mediaId);
   if (!p || p.received !== p.size) throw new Error("Transferência de mídia incompleta.");
   const blob = new Blob(p.parts, { type: p.mime }); p.parts = [];
-  const digest = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
-  const sha256 = Array.from(new Uint8Array(digest), x => x.toString(16).padStart(2, "0")).join("");
+  const sha256 = await hashBlob(blob);
   const suffix = p.originalName?.match(/\.([a-zA-Z0-9]{1,8})$/)?.[1]?.toLowerCase() || C.mediaExtension(p.mime);
   const mediaKey = `${job.key}:${p.mediaId}`;
   const existing = await store.get("media", mediaKey);
   const mediaId = existing?.id || `MID-${String(job.mediaCount + 1).padStart(6, "0")}`;
   const path = existing?.path || `midias/${mediaId}.${suffix}`;
   const record = { id: mediaId, key: mediaKey, job: job.key, messageId: p.messageId, blob, path, mime: p.mime, size: p.size, sha256, source: p.captureSource, complete: true };
-  if (!existing) { await store.put("media", record); job.mediaCount++; job.bytes += p.size; }
-  if (job.options.destination === "drive") {
+  if (!existing) {
+    try { await store.put("media", record); }
+    catch (e) { if (isMonitor()) { await pause("Não foi possível preservar a mídia no disco. Exporte o material salvo; verifique espaço livre e baixe o diagnóstico."); e.capacity = true; } throw e; }
+    job.mediaCount++; job.bytes += p.size; job.localBytes = (job.localBytes || 0) + p.size; if (job.options.destination === "drive") job.pendingUploads = (job.pendingUploads || 0) + 1; }
+  if (job.options.destination === "drive" && !isMonitor()) {
     job.phase = "Enviando mídia ao Drive"; await publish();
     try { await uploadMedia(existing || record); } catch { /* Local blob saved; collector will pause after its batch. */ }
-    job.phase = "Coletando histórico";
+    job.phase = isMonitor() ? "Monitorando novas mensagens" : "Coletando histórico";
   }
   await save(); return { ok: true, path, id: mediaId, paused: job.status === "paused" };
 }
@@ -168,7 +236,7 @@ async function obtainApiMedia(m) {
   try {
     job.phase = "Recuperando mídia pela API da sessão"; await publish();
     await apiMedia.prepare(activeJob.tabId);
-    const meta = await apiMedia.execute(activeJob.tabId, "begin", { token, id: m.messageId, attachment: m.attachment || 0, title: activeJob.conversation.title });
+    const meta = await apiMedia.execute(activeJob.tabId, "begin", { token, id: m.messageId, attachment: m.attachment || 0, title: activeJob.conversation.title, chatId: activeJob.monitorChatId });
     await mediaStart({ mediaId, messageId: m.messageId, size: meta.size, mime: meta.mime, originalName: meta.name, captureSource: meta.source });
     for (let offset = 0; offset < meta.size;) {
       if (job !== activeJob) throw new Error("A coleta mudou durante o download.");
@@ -181,7 +249,7 @@ async function obtainApiMedia(m) {
     return result;
   } catch (e) {
     pendingMedia.delete(mediaId); diagnostics.record("api_media_failed", { operation: "session_api" }, e); throw e;
-  } finally { try { await apiMedia.execute(activeJob.tabId, "release", { token }); } catch { /* Reload/closed page releases memory. */ } if (job === activeJob && job.status === "running") { job.phase = "Coletando histórico"; await publish(); } }
+  } finally { try { await apiMedia.execute(activeJob.tabId, "release", { token }); } catch { /* Reload/closed page releases memory. */ } if (job === activeJob && job.status === "running") { job.phase = isMonitor() ? "Monitorando novas mensagens" : "Coletando histórico"; await publish(); } }
 }
 async function exportLocal() {
   if (!job || exportBusy || ["running", "stopping"].includes(job.status)) throw new Error("Pause ou encerre a coleta antes de exportar.");
@@ -198,6 +266,18 @@ async function exportLocal() {
   } catch (e) { diagnostics.record("export_failed", { operation: job.options.destination }, e); job.notice = "Exportação falhou. Tente novamente ou baixe o log de diagnóstico."; throw e; } finally { exportBusy = false; job.phase = "Coleta preservada"; await save(); }
 }
 async function finishDrive() {
+  if (isMonitor()) {
+    if (exportBusy) throw new Error("Aguarde a exportação em andamento.");
+    const running = job.status === "running";
+    if (running) await collector("pause");
+    if (["running", "paused"].includes(job.status)) {
+      try { await collector("settle"); } catch (e) { if (pendingMedia.size) throw e; diagnostics.record("collector_unavailable_at_sync", {}, e); }
+    }
+    exportBusy = true; await publish();
+    try { await syncLive(true, !running && job.status !== "paused"); }
+    finally { exportBusy = false; if (running && job.status === "running") await collector("resume"); await save(); }
+    return;
+  }
   if (!job || exportBusy || ["running", "stopping"].includes(job.status)) throw new Error("Encerre a coleta antes de finalizar o Drive.");
   if (!job.driveFolder) throw new Error("Esta coleta não tem uma pasta no Drive.");
   exportBusy = true; job.phase = "Finalizando pasta no Drive"; await publish();
@@ -230,7 +310,7 @@ browser.browserAction.onClicked.addListener(() => browser.sidebarAction.open());
 browser.permissions.onRemoved.addListener(removed => {
   if (removed.origins?.some(origin => googlePermissions.origins.includes(origin)) || removed.data_collection?.length) {
     drive.disconnect();
-    if (job?.options.destination === "drive" && job.status === "running") pause("Permissão de envio ao Google Drive removida.");
+    if (job?.options.destination === "drive" && job.status === "running") { if (isMonitor()) { job.uploadNotice = "Permissão Drive removida; dados pendentes permanecem locais até o limite."; save(); } else pause("Permissão de envio ao Google Drive removida."); }
     else publish();
   }
 });
@@ -255,6 +335,15 @@ browser.runtime.onMessage.addListener(async (m, sender) => {
     if (storageError) throw storageError;
     if (m.source === "collector") {
       if (!job || sender.tab?.id !== job.tabId || m.job !== job.key) throw new Error("Origem de coleta inválida.");
+      if (m.type === "monitor-existing" && isMonitor()) {
+        const old = await store.findMessage(job.key, m.id);
+        return { ok: true, hasMedia: !!old?.message.midias?.length };
+      }
+      if (m.type === "monitor-snapshot" && isMonitor()) {
+        await apiMedia.prepare(job.tabId);
+        const result = await apiMedia.execute(job.tabId, "monitor", { title: job.conversation.title, channelCode: job.conversation.channelCode, chatId: job.monitorChatId, baseline: job.monitorBaseline, after: job.monitorCursor });
+        job.lastCheck = now(); await save(); return result;
+      }
       if (m.type === "message-metadata") {
         try {
           await apiMedia.prepare(job.tabId);
@@ -301,23 +390,25 @@ browser.runtime.onMessage.addListener(async (m, sender) => {
     else if (m.type === "connect") {
       await assertGooglePermissions();
       const settings = await browser.storage.local.get("googleClientId"), cfg = await config;
-      await drive.connect(settings.googleClientId || cfg.googleClientId); await publish();
+      await drive.connect(settings.googleClientId || cfg.googleClientId);
+      if (job?.driveAccount && job.driveAccount !== drive.account && ["running", "paused", "stopping"].includes(job.status)) { drive.disconnect(); throw new Error("Use a mesma conta que criou a pasta desta coleta."); }
+      nextSync = 0; if (isMonitor()) setTimeout(() => syncLive(), 0); await publish();
     }
-    else if (m.type === "disconnect") { drive.disconnect(); if (job?.options.destination === "drive" && job.status === "running") await pause("Google Drive desconectado."); await publish(); }
+    else if (m.type === "disconnect") { drive.disconnect(); if (job?.options.destination === "drive" && job.status === "running") { if (isMonitor()) { job.uploadNotice = "Drive desconectado; novas mídias permanecerão na fila local até o limite."; await save(); } else await pause("Google Drive desconectado."); } await publish(); }
     else if (m.type === "configure-google") {
       if (m.clientId && !/^[a-zA-Z0-9_-]+\.apps\.googleusercontent\.com$/.test(m.clientId)) throw new Error("Client ID inválido.");
       await browser.storage.local.set({ googleClientId: m.clientId || "" }); drive.disconnect(); await publish();
     }
     else if (m.type === "clear") {
-      if (exportBusy || job && ["running", "stopping", "paused"].includes(job.status)) throw new Error("Encerre a coleta antes de apagar os dados temporários.");
+      if (exportBusy || liveSync.busy || job && ["running", "stopping", "paused"].includes(job.status)) throw new Error("Encerre a coleta antes de apagar os dados temporários.");
       if (job) await store.deleteJob(job.key); job = null; await publish();
     }
     else if (m.type === "restore") {
-      if (job && ["running", "paused", "stopping"].includes(job.status)) throw new Error("Encerre a coleta atual primeiro.");
+      if (liveSync.busy || exportBusy || job && ["running", "paused", "stopping"].includes(job.status)) throw new Error("Encerre a coleta atual e aguarde os envios primeiro.");
       const jobs = await store.all("jobs"); job = jobs.sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0] || null; await publish();
     }
     return { ok: true };
-  } catch (e) { diagnostics.record("command_failed", { operation: String(m.type).replace(/[^a-z-]/g, "").slice(0, 40) }, e); return { ok: false, error: e.message }; }
+  } catch (e) { diagnostics.record("command_failed", { operation: String(m.type).replace(/[^a-z-]/g, "").slice(0, 40) }, e); return { ok: false, capacity: !!e.capacity, error: e.message }; }
 });
 await ready;
 diagnostics.record("extension_started");

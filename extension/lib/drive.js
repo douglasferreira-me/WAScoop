@@ -8,12 +8,12 @@ export class Drive {
     this.token = null; this.expires = 0;
     this.authorize = authorize;
   }
-  async connect(clientId) {
+  async connect(clientId, interactive = true) {
     if (!clientId?.endsWith(".apps.googleusercontent.com")) throw new Error("O mantenedor ainda não configurou o aplicativo Google. Use ZIP local.");
     const redirect = this.identity.getRedirectURL();
     const state = crypto.randomUUID();
-    const query = new URLSearchParams({ client_id: clientId, redirect_uri: redirect, response_type: "token", scope: "https://www.googleapis.com/auth/drive.file", state, prompt: "select_account" });
-    const returned = await this.identity.launchWebAuthFlow({ url: `${AUTH}?${query}`, interactive: true });
+    const query = new URLSearchParams({ client_id: clientId, redirect_uri: redirect, response_type: "token", scope: "https://www.googleapis.com/auth/drive.file", state, prompt: interactive ? "select_account" : "none" });
+    const returned = await this.identity.launchWebAuthFlow({ url: `${AUTH}?${query}`, interactive });
     const url = new URL(returned), expected = new URL(redirect);
     if (url.origin !== expected.origin || url.pathname !== expected.pathname) throw new Error("Redirecionamento Google inválido.");
     const params = new URLSearchParams(url.hash.slice(1));
@@ -25,7 +25,12 @@ export class Drive {
     const response = await this.fetcher(`https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(token)}`, { cache: "no-store" });
     if (!response.ok) throw new Error("Não foi possível validar a autorização Google.");
     const info = await response.json();
-    if (info.aud !== clientId || !String(info.scope || "").split(" ").includes("https://www.googleapis.com/auth/drive.file")) throw new Error("Autorização Google incompatível.");
+    if ((info.aud || info.audience || info.issued_to) !== clientId || !String(info.scope || "").split(" ").includes("https://www.googleapis.com/auth/drive.file")) throw new Error("Autorização Google incompatível.");
+    const accountResponse = await this.fetcher("https://www.googleapis.com/drive/v3/about?fields=user(permissionId)", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+    if (!accountResponse.ok) throw new Error("Não foi possível identificar a conta do Drive.");
+    const account = (await accountResponse.json()).user?.permissionId;
+    if (!account) throw new Error("A conta do Drive não forneceu identificação.");
+    this.account = account; this.clientId = clientId;
     this.token = token; this.expires = this.clock() + Math.max(0, Number(info.expires_in || params.get("expires_in")) - 60) * 1000;
     return { connected: true, expires: this.expires };
   }
@@ -35,15 +40,20 @@ export class Drive {
     if (!/^https:\/\/www\.googleapis\.com\//.test(url)) throw new Error("Destino de upload inválido.");
     for (let attempt = 0; attempt < 4; attempt++) {
       await this.authorize();
+      if (!this.tokenProvider && !this.connected() && this.clientId && this.token) {
+        const account = this.account;
+        try { await this.connect(this.clientId, false); if (this.account !== account) { this.disconnect(); throw new Error("Conta diferente."); } }
+        catch { throw new AuthRequired("Reconecte ao Google Drive; os arquivos pendentes continuam locais."); }
+      }
       const token = this.tokenProvider ? this.tokenProvider() : this.connected() ? this.token : null;
       if (!token) throw new AuthRequired("Conecte novamente ao Google Drive para continuar.");
       let response;
-      try { response = await this.fetcher(url, { ...init, headers: { ...init.headers, Authorization: `Bearer ${token}` } }); }
+      try { response = await this.fetcher(url, { ...init, signal: AbortSignal.timeout(45000), headers: { ...init.headers, Authorization: `Bearer ${token}` } }); }
       catch (e) { if (attempt === 3) throw e; await this.sleeper(500 * 2 ** attempt); continue; }
       if (response.status === 401) { this.disconnect(); throw new AuthRequired("A autorização Google expirou. Conecte novamente."); }
       if (response.ok || (accept308 && response.status === 308)) return response;
       const retriable = response.status === 429 || response.status >= 500;
-      if (!retriable || attempt === 3) throw new Error(`Google Drive retornou ${response.status}. Nenhum arquivo local foi descartado.`);
+      if (!retriable || attempt === 3) { const error = new Error(`Google Drive retornou ${response.status}. Nenhum arquivo local foi descartado.`); error.status = response.status; throw error; }
       const retryAfter = Number(response.headers.get("Retry-After"));
       await this.sleeper(Math.min(10000, retryAfter > 0 ? retryAfter * 1000 : 500 * 2 ** attempt));
     }
@@ -53,17 +63,23 @@ export class Drive {
     const r = await this.request(API + "?fields=id,webViewLink", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(metadata) });
     return r.json();
   }
-  async upload(name, blob, folder, onProgress = () => {}, savedSession = null, onSession = async () => {}) {
+  async upload(name, blob, folder, onProgress = () => {}, savedSession = null, onSession = async () => {}, fileId = null) {
     let url = savedSession;
     if (!url) {
-      const r = await this.request(UPLOAD + "?uploadType=resumable&fields=id", { method: "POST", headers: { "Content-Type": "application/json", "X-Upload-Content-Type": blob.type || "application/octet-stream", "X-Upload-Content-Length": String(blob.size) }, body: JSON.stringify({ name, parents: [folder] }) });
+      const r = await this.request(UPLOAD + (fileId ? "/" + encodeURIComponent(fileId) : "") + "?uploadType=resumable&fields=id", { method: fileId ? "PATCH" : "POST", headers: { "Content-Type": "application/json", "X-Upload-Content-Type": blob.type || "application/octet-stream", "X-Upload-Content-Length": String(blob.size) }, body: JSON.stringify({ name, ...(!fileId ? { parents: [folder] } : {}) }) });
       url = r.headers.get("Location");
       if (!url) throw new Error("Google não criou sessão de upload.");
       await onSession(url);
     }
     let offset = 0;
     if (savedSession) {
-      const status = await this.request(url, { method: "PUT", headers: { "Content-Range": `bytes */${blob.size}` }, body: new Blob() }, true);
+      let status;
+      try { status = await this.request(url, { method: "PUT", headers: { "Content-Range": `bytes */${blob.size}` }, body: new Blob() }, true); }
+      catch (e) {
+        if (![404, 410].includes(e.status)) throw e;
+        await onSession(null);
+        return this.upload(name, blob, folder, onProgress, null, onSession, fileId);
+      }
       if (status.ok) return status.json();
       offset = this.nextOffset(status);
     }

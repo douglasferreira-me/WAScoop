@@ -2,11 +2,12 @@ const DB_NAME = "whatsapp-scoop-v1";
 export class Store {
   async open() {
     this.db = await new Promise((resolve, reject) => {
-      const r = indexedDB.open(DB_NAME, 1);
+      const r = indexedDB.open(DB_NAME, 2);
       r.onupgradeneeded = () => {
-        for (const name of ["jobs", "messages", "media"]) {
-          const s = r.result.createObjectStore(name, { keyPath: "key" });
-          if (name !== "jobs") s.createIndex("job", "job");
+        for (const name of ["jobs", "messages", "media", "uploads"]) {
+          const s = r.result.objectStoreNames.contains(name) ? r.transaction.objectStore(name) : r.result.createObjectStore(name, { keyPath: "key" });
+          if (name !== "jobs" && !s.indexNames.contains("job")) s.createIndex("job", "job");
+          if (name === "messages" && !s.indexNames.contains("identity")) s.createIndex("identity", ["job", "message.id"]);
         }
       };
       r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error);
@@ -40,24 +41,20 @@ export class Store {
   async *records(name, job) {
     let after;
     while (true) {
-      const rows = await this.page(name, job, after, name === "media" ? 1 : 100);
+      const rows = await this.page(name, job, after, name !== "messages" ? 1 : 100);
       if (!rows.length) return;
       for (const row of rows) yield row;
       after = rows[rows.length - 1].key;
     }
   }
-  async findMessage(job, id) {
-    return new Promise((resolve, reject) => {
-      const tx = this.db.transaction("messages"), req = tx.objectStore("messages").index("job").openCursor(IDBKeyRange.only(job));
-      req.onsuccess = () => { const c = req.result; if (!c) resolve(null); else if (c.value.message.id === id) resolve(c.value); else c.continue(); };
-      req.onerror = () => reject(req.error);
-    });
+  findMessage(job, id) {
+    return this.transaction("messages", "readonly", s => s.index("identity").get([job, id]));
   }
   replaceMessage(previousKey, record) {
     return this.transaction("messages", "readwrite", s => { if (previousKey && previousKey !== record.key) s.delete(previousKey); return s.put(record); });
   }
   async deleteJob(job) {
-    for (const name of ["messages", "media"]) {
+    for (const name of ["messages", "media", "uploads"]) {
       await new Promise((resolve, reject) => {
         const tx = this.db.transaction(name, "readwrite");
         const req = tx.objectStore(name).index("job").openCursor(IDBKeyRange.only(job));

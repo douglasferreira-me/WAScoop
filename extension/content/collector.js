@@ -102,6 +102,99 @@
     if (info.identity !== session.identity) { await pause("A conversa mudou. Volte à conversa original para continuar."); return null; }
     return info;
   }
+  async function captureMedia(s, m, row) {
+          const media = [], mediaIds = [];
+          if (s.options.media && m.tipo !== "texto") {
+            if (!await verify()) throw new Error("Conversa mudou.");
+            const attachmentCount = Math.max(1, row ? A.mediaTargets(row).length : 1);
+            for (let attachment = 0; attachment < attachmentCount; attachment++) {
+              if (s.stopped) break;
+              try {
+                // Prefer the authenticated session API. DOM capture remains a
+                // compatibility fallback; it is never a thumbnail substitute.
+                const apiResult = await send({ type: "api-media", job: s.job, messageId: m.id, attachment });
+                if (apiResult?.capacity) { s.paused = true; s.capacityBlocked = true; return m; }
+                if (apiResult?.ok) {
+                  media.push(apiResult.path); mediaIds.push(apiResult.id); m.status_midia = m._mediaError ? "parcial" : "obtida";
+                  if (apiResult.paused) s.paused = true;
+                  continue;
+                }
+                if (!row) throw new Error(apiResult?.error || "Mídia original indisponível na API; será tentada novamente.");
+                const original = await downloadOriginal(row, m.tipo, attachment);
+                if (!original.blob.size) throw new Error("Arquivo vazio.");
+                // Chunk native messaging-sized transfers; no large base64 batch.
+                const mediaId = `${m.id}:${attachment}`, size = original.blob.size;
+                const opened = await send({ type: "media-start", job: s.job, mediaId, messageId: m.id, mime: original.blob.type || "application/octet-stream", originalName: original.name, captureSource: original.source, size });
+                if (opened.capacity) { s.paused = true; s.capacityBlocked = true; return m; }
+                if (!opened.ok) throw new Error(opened.error);
+                for (let offset = 0; offset < size; offset += 256 * 1024) {
+                  const chunk = original.blob.slice(offset, offset + 256 * 1024);
+                  const transferred = await send({ type: "media-chunk", job: s.job, mediaId, offset, data: await toBase64(chunk) });
+                  if (!transferred.ok) throw new Error(transferred.error);
+                }
+                const result = await send({ type: "media-end", job: s.job, mediaId });
+                if (result.capacity) { s.paused = true; s.capacityBlocked = true; return m; }
+                if (!result.ok) throw new Error(result.error);
+                media.push(result.path); mediaIds.push(result.id); m.status_midia = m._mediaError ? "parcial" : "obtida";
+                if (result.paused) s.paused = true;
+              } catch (e) {
+                m.status_midia = media.length ? "parcial" : "falha"; m._mediaError = e.message;
+                (m._mediaErrors ||= []).push({ anexo: attachment + 1, erro: e.message });
+                try { await send({ type: "media-abort", job: s.job, mediaId: `${m.id}:${attachment}` }); } catch { /* Session loss is handled by the outer loop. */ }
+              }
+            }
+          }
+          m.midias = media; m.midias_ids = mediaIds;
+    return m;
+  }
+  async function monitor(s) {
+    if (s.loopRunning) return;
+    s.loopRunning = true;
+    let observer;
+    try {
+      let dirty = true;
+      observer = new MutationObserver(() => { dirty = true; });
+      observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+      while (!s.stopped) {
+        if (s.paused) { await delay(300); continue; }
+        const info = await verify(); if (!info) continue;
+        // Polling is a fallback for API updates which do not mutate visible DOM.
+        if (!dirty && Date.now() - (s.lastCheck || 0) < 5000) { await delay(300); continue; }
+        dirty = false; s.lastCheck = Date.now();
+        const snapshot = await send({ type: "monitor-snapshot", job: s.job });
+        if (!snapshot.ok) throw new Error(snapshot.error);
+        if (snapshot.messages.length) {
+          s.inMessage = true;
+          const rows = A.rows(info.root), adapter = new A.ChannelAdapter();
+          const visible = new Map(rows.map(row => [adapter.read(row, info).id, row]));
+          const payload = [];
+          for (const item of snapshot.messages) {
+            if (s.stopped || s.paused) break;
+            const row = visible.get(item.id);
+            const dom = row ? adapter.read(row, info) : {};
+            const m = C.assessCapture({ ...dom, ...item, conversa: info.title, tipo_conversa: "canal", links: C.extractLinks((item.texto || "") + "\n" + (item.legenda || ""), dom.links || []), midias: [], midias_ids: [], status_midia: item.tipo === "texto" ? "nao_aplicavel" : "nao_solicitada" });
+            const existing = await send({ type: "monitor-existing", job: s.job, id: m.id });
+            if (!existing.ok) throw new Error(existing.error);
+            if (!existing.hasMedia && item._hasMedia && m.tipo !== "texto") {
+              const captured = await captureMedia(s, m, row);
+              if (s.capacityBlocked) break;
+              payload.push(captured);
+            } else payload.push(m);
+          }
+          const saved = await send({ type: "batch", job: s.job, messages: payload, monitor: true, cursor: s.capacityBlocked || s.paused || s.stopped ? undefined : snapshot.cursor });
+          if (!saved.ok) throw new Error(saved.error);
+          if (saved.paused) s.paused = true;
+          s.inMessage = false;
+        }
+        if (snapshot.more && !s.paused) dirty = true;
+        await delay(snapshot.more ? 300 : 1000);
+      }
+    } catch (e) { await pause(`Monitoramento interrompido: ${e.message}`); }
+    finally {
+      observer?.disconnect(); s.loopRunning = false; s.inMessage = false;
+      if (s.stopped && !s.finishSent) { s.finishSent = true; await send({ type: "collector-stopped", job: s.job }); }
+    }
+  }
   async function collect(s) {
     if (s.loopRunning) return;
     s.loopRunning = true;
@@ -155,44 +248,7 @@
           }
           m = C.assessCapture(m);
           s.inMessage = true;
-          const media = [], mediaIds = [];
-          if (s.options.media && m.tipo !== "texto") {
-            if (!await verify()) break;
-            const attachmentCount = Math.max(1, A.mediaTargets(rows[i]).length);
-            for (let attachment = 0; attachment < attachmentCount; attachment++) {
-              if (s.stopped) break;
-              try {
-                // Prefer the authenticated session API. DOM capture remains a
-                // compatibility fallback; it is never a thumbnail substitute.
-                const apiResult = await send({ type: "api-media", job: s.job, messageId: m.id, attachment });
-                if (apiResult?.ok) {
-                  media.push(apiResult.path); mediaIds.push(apiResult.id); m.status_midia = m._mediaError ? "parcial" : "obtida";
-                  if (apiResult.paused) s.paused = true;
-                  continue;
-                }
-                const original = await downloadOriginal(rows[i], m.tipo, attachment);
-                if (!original.blob.size) throw new Error("Arquivo vazio.");
-                // Chunk native messaging-sized transfers; no large base64 batch.
-                const mediaId = `${m.id}:${attachment}`, size = original.blob.size;
-                const opened = await send({ type: "media-start", job: s.job, mediaId, messageId: m.id, mime: original.blob.type || "application/octet-stream", originalName: original.name, captureSource: original.source, size });
-                if (!opened.ok) throw new Error(opened.error);
-                for (let offset = 0; offset < size; offset += 256 * 1024) {
-                  const chunk = original.blob.slice(offset, offset + 256 * 1024);
-                  const transferred = await send({ type: "media-chunk", job: s.job, mediaId, offset, data: await toBase64(chunk) });
-                  if (!transferred.ok) throw new Error(transferred.error);
-                }
-                const result = await send({ type: "media-end", job: s.job, mediaId });
-                if (!result.ok) throw new Error(result.error);
-                media.push(result.path); mediaIds.push(result.id); m.status_midia = m._mediaError ? "parcial" : "obtida";
-                if (result.paused) s.paused = true;
-              } catch (e) {
-                m.status_midia = media.length ? "parcial" : "falha"; m._mediaError = e.message;
-                (m._mediaErrors ||= []).push({ anexo: attachment + 1, erro: e.message });
-                try { await send({ type: "media-abort", job: s.job, mediaId: `${m.id}:${attachment}` }); } catch { /* Session loss is handled by the outer loop. */ }
-              }
-            }
-          }
-          m.midias = media; m.midias_ids = mediaIds;
+          m = await captureMedia(s, m, rows[i]);
           payload.push(m);
         }
         const result = await send({ type: "batch", job: s.job, messages: payload, emptyRecords: s.emptyRecords.size, unknownDates: s.unknownDates.size, fallbackIds: messages.some(m => m._fallback) });
@@ -281,6 +337,12 @@
       while (session?.inMessage) { if (Date.now() > deadline) throw new Error("A mídia atual ainda está sendo preservada. Aguarde e tente exportar novamente."); await delay(100); }
       return { ok: true };
     }
+    if (message.type === "monitor-position") {
+      const info = A.conversation(); if (!info) throw new Error("Abra o canal antes de monitorar.");
+      const rows = A.rows(info.root), box = A.scrollBox(info.root, rows);
+      if (box) { box.scrollTop = box.scrollHeight; box.dispatchEvent(new Event("scroll", { bubbles: true })); await delay(1200); }
+      return { ok: true };
+    }
     if (message.type === "inspect") {
       const info = A.conversation(); return info ? { title: info.title, type: info.type, identity: info.identity, channelCode: info.channelCode } : null;
     }
@@ -288,14 +350,15 @@
       if (session && !session.stopped) throw new Error("Já há uma coleta nesta aba.");
       const info = A.conversation(); if (!info) throw new Error("Abra um grupo ou canal no WhatsApp Web.");
       session = { job: message.job, identity: info.identity, options: message.options, startedAt: message.startedAt, timeline: new C.Timeline(), seen: new Set(), unknownDates: new Set(), paused: false, stopped: false, finishSent: false };
-      collect(session); return { ok: true };
+      (session.options.mode === "monitor" ? monitor : collect)(session); return { ok: true };
     }
     if (message.type === "pause") { if (session) session.paused = true; return { ok: true }; }
     if (message.type === "resume") {
       if (!session || session.stopped) throw new Error("Sessão de coleta perdida. Exporte o material preservado e inicie outra coleta.");
       if (!await verify()) throw new Error("Volte à conversa original para continuar.");
       session.paused = false; session.metadataRetries?.clear(); session.scrollReset = true;
-      if (!session.loopRunning) collect(session);
+      session.capacityBlocked = false;
+      if (!session.loopRunning) (session.options.mode === "monitor" ? monitor : collect)(session);
       return { ok: true };
     }
     if (message.type === "stop") {

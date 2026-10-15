@@ -13,13 +13,21 @@ function bytes(size) { if (!size) return "0 B"; const i = Math.min(3, Math.floor
 function render(state) {
   current = state;
   const j = state.job, active = j && ["running", "paused", "stopping"].includes(j.status);
+  if (active) {
+    $("mode").value = j.options.mode || "history"; $("destination").value = j.options.destination;
+    $("media").checked = !!j.options.media; $("workbook").checked = !!j.options.workbook;
+    $("pseudonymize").checked = !!j.options.pseudonymize;
+    $("local-limit").value = j.options.localLimitMB || 512; $("release-media").checked = !!j.options.releaseUploadedMedia;
+    modeControls();
+  }
+  $("drive-box").hidden = $("destination").value !== "drive" && !j?.driveFolder;
   $("conversation").textContent = (active ? j?.conversation.title : state.conversation?.title) || j?.conversation.title || "Abra um grupo ou canal no WhatsApp Web.";
   $("collection-settings").disabled = !!active || state.exportBusy;
   $("start-button").disabled = !!active || state.exportBusy;
   $("progress-section").hidden = !j;
   $("connect").textContent = state.driveConnected ? "Reconectar ao Google Drive" : "Conectar ao Google Drive";
   $("disconnect").hidden = !state.driveConnected;
-  $("drive-status").textContent = state.driveConnected ? "Conta conectada durante esta sessão. Integração em validação." : state.driveConfigured ? "Integração em implementação: conecte sua conta para testar o envio." : "Exportação direta em implementação. Login ainda não configurado pelo mantenedor; use ZIP local.";
+  $("drive-status").textContent = state.driveConnected ? "Conta conectada nesta sessão." : state.driveConfigured ? "Aplicativo configurado. Conecte sua conta para testar o envio." : "Login ainda não configurado. Siga o guia em Configuração do Google Drive ou use ZIP local.";
   $("redirect").textContent = state.redirect;
   if (!j) return;
   $("progress-title").textContent = `Sua coleta · ${j.conversation.title}`;
@@ -31,11 +39,12 @@ function render(state) {
   const fmt = value => value ? new Date(value).toLocaleString("pt-BR") : "data desconhecida";
   $("period").textContent = j.oldest ? `Período alcançado: ${fmt(j.oldest)} — ${fmt(j.newest)}` : "O período aparecerá quando houver datas reconhecidas.";
   $("failures").textContent = `${j.incompleteCount || 0} mensagem(ns) com campos pendentes · ${j.mediaFailures} falha(s) de mídia${j.unknownDates ? ` · ${j.unknownDates} mensagem(ns) sem data excluída(s) pelo filtro` : ""}`;
+  $("sync-status").textContent = j.options.mode === "monitor" ? `Última verificação: ${j.lastCheck ? fmt(j.lastCheck) : "aguardando"} · ${j.pendingUploads || 0} mídia(s) pendente(s) · ${bytes(j.localBytes || 0)} locais. ${j.uploading ? "Enviando ao Drive. " : ""}Última sincronização: ${j.lastSync ? fmt(j.lastSync) : "aguardando"}.${j.uploadNotice ? " " + j.uploadNotice : ""}` : "";
   $("notice").textContent = (j.notice || "O total de mensagens não é conhecido antes da coleta.") + (j.status === "paused" ? " Use Continuar na conversa original ou Encerrar e exportar para liberar uma nova coleta." : "");
   $("pause").hidden = j.status !== "running"; $("resume").hidden = j.status !== "paused";
   $("stop").disabled = !["running", "paused"].includes(j.status) || state.exportBusy;
   $("export").disabled = ["running", "stopping"].includes(j.status) || state.exportBusy;
-  $("finish-drive").hidden = !j.driveFolder; $("finish-drive").disabled = !!active || state.exportBusy;
+  $("finish-drive").hidden = !j.driveFolder; $("finish-drive").disabled = (j.options.mode !== "monitor" && !!active) || j.status === "stopping" || state.exportBusy; $("finish-drive").textContent = j.options.mode === "monitor" ? "Sincronizar agora" : "Finalizar envio ao Drive";
   $("progress").hidden = !["running", "stopping"].includes(j.status) && !state.exportBusy;
   $("drive-link").hidden = !j.driveLink;
   if (j.driveLink) $("drive-link").href = j.driveLink;
@@ -43,10 +52,19 @@ function render(state) {
 function bind(id, action) {
   $(id).addEventListener("click", async () => { $(id).disabled = true; try { await action(); const r = await command("state"); render(r.state); } catch (e) { error(e.message); } finally { $(id).disabled = false; if (current) render(current); } });
 }
-$("destination").addEventListener("change", () => { $("drive-box").hidden = $("destination").value !== "drive"; });
+function modeControls() {
+  const monitor = $("mode").value === "monitor";
+  $("monitor-help").hidden = !monitor; $("monitor-options").hidden = !monitor; $("history-dates").hidden = monitor;
+  if (monitor) $("media").checked = true;
+  $("media").disabled = monitor;
+  $("release-media").disabled = !monitor || $("destination").value !== "drive";
+}
+$("mode").addEventListener("change", () => { if ($("mode").value === "monitor") $("destination").value = "drive"; $("drive-box").hidden = $("destination").value !== "drive"; modeControls(); });
+bind("copy-redirect", () => navigator.clipboard.writeText($("redirect").textContent));
+$("destination").addEventListener("change", () => { $("drive-box").hidden = $("destination").value !== "drive"; modeControls(); });
 $("settings").addEventListener("submit", async e => {
   e.preventDefault(); $("start-button").disabled = true;
-  try { await command("start", { options: { start: $("start").value, end: $("end").value, media: $("media").checked, workbook: $("workbook").checked, pseudonymize: $("pseudonymize").checked, destination: $("destination").value } }); }
+  try { await command("start", { options: { mode: $("mode").value, localLimitMB: Number($("local-limit").value), releaseUploadedMedia: $("release-media").checked && $("destination").value === "drive", start: $("start").value, end: $("end").value, media: $("media").checked, workbook: $("workbook").checked, pseudonymize: $("pseudonymize").checked, destination: $("destination").value } }); }
   catch (e) { error(e.message); }
   finally { try { const result = await command("state"); render(result.state); } catch (e) { $("start-button").disabled = false; error(e.message + " Baixe o log de diagnóstico."); } }
 });
@@ -54,7 +72,7 @@ for (const id of ["inspect", "pause", "resume", "stop", "export", "finish-drive"
 bind("clear", async () => { if (confirm("Apagar os dados temporários da coleta atual? Os arquivos já exportados serão preservados.")) await command("clear"); });
 bind("save-google", () => command("configure-google", { clientId: $("client-id").value.trim() }));
 bind("connect", async () => {
-  if (!current?.driveConfigured) throw new Error("O mantenedor precisa cadastrar o aplicativo Google antes de oferecer este login. Use ZIP local por enquanto.");
+  if (!current?.driveConfigured) throw new Error("Siga o guia em Configuração do Google Drive e salve o Client ID antes de conectar.");
   const granted = await browser.permissions.request({ origins: ["https://accounts.google.com/*", "https://www.googleapis.com/*", "https://oauth2.googleapis.com/*"], data_collection: ["personalCommunications", "personallyIdentifyingInfo", "websiteContent", "authenticationInfo"] });
   if (!granted) throw new Error("Permissão Google não autorizada.");
   await command("connect");

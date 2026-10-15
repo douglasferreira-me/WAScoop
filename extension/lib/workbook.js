@@ -24,7 +24,7 @@
   const mediaColumns = [
     ["id", "Mídia ID", 23], ["messageId", "Mensagem ID", 28], ["path", "Arquivo de mídia", 48],
     ["mime", "Formato (MIME)", 26], ["size", "Tamanho (bytes)", 20, "number"], ["sha256", "SHA-256", 66],
-    ["source", "Origem da captura", 27], ["driveId", "Arquivo ID no Drive", 32], ["upload", "Estado do envio", 30]
+    ["source", "Origem da captura", 27], ["driveId", "Arquivo ID no Drive", 32], ["upload", "Estado do envio", 30], ["drive_url", "Abrir mídia no Drive", 40]
   ];
   function escapeXML(value) {
     return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
@@ -136,7 +136,7 @@
       }
     }
     async function *media() {
-      for await (const row of store.records("media", job.key)) if (row.complete) yield { ...row, upload: row.uploadError || (row.driveId ? "enviado" : "local") };
+      for await (const row of store.records("media", job.key)) if (row.complete) yield { ...row, drive_url: row.driveId ? `https://drive.google.com/file/d/${row.driveId}/view` : "", upload: row.uploadError || (row.driveId ? "enviado" : "local") };
     }
     async function *longTexts() {
       for await (const m of messages()) for (const [field] of messageColumns) {
@@ -161,8 +161,10 @@
               onRecord?.(record);
               yield `<row r="${row}" ht="54" customHeight="1">` + columns.map(([field, , , kind], i) => {
                 const ref = columnName(i) + row, value = record[field];
-                // Only controlled relative media paths become hyperlinks. Never message URLs.
-                const linked = linkField === field && /^midias\/[^/\\]+$/.test(value || "") && !/[\u0000-\u001f]/.test(value) && !/(^|\/)\.\.?($|\/)/.test(value);
+                // Only controlled media paths and Google Drive file URLs become hyperlinks.
+                const localLink = linkField === field && /^midias\/[^/\\]+$/.test(value || "") && !/[\u0000-\u001f]/.test(value) && !/(^|\/)\.\.?($|\/)/.test(value);
+                const remoteLink = field === "drive_url" && /^https:\/\/drive\.google\.com\/file\/d\/[A-Za-z0-9_-]+\/view$/.test(value || "");
+                const linked = localLink || remoteLink;
                 if (linked) links.push({ ref, target: value });
                 return cell(ref, value, kind, alternate, linked ? (alternate ? 12 : 11) : undefined);
               }).join("") + '</row>';
@@ -170,7 +172,7 @@
               next = await iterator.next();
             }
             yield `</sheetData><autoFilter ref="A1:${columnName(columns.length - 1)}${count + 1}"/>`;
-            if (links.length) yield '<hyperlinks>' + links.map((link, i) => `<hyperlink ref="${link.ref}" r:id="rId${i + 1}" tooltip="Abra após extrair o ZIP; mantenha a pasta midias ao lado da planilha."/>`).join("") + '</hyperlinks>';
+            if (links.length) yield '<hyperlinks>' + links.map((link, i) => `<hyperlink ref="${link.ref}" r:id="rId${i + 1}" tooltip="Abra a mídia no destino indicado. Caminhos locais exigem o ZIP extraído."/>`).join("") + '</hyperlinks>';
             yield '<pageMargins left="0.3" right="0.3" top="0.5" bottom="0.5" header="0.2" footer="0.2"/></worksheet>';
           }
           await writer.add(`xl/worksheets/sheet${descriptor.id}.xml`, stream(xml()), { level: 6, lastModDate: timestamp });

@@ -19,6 +19,15 @@ Use conversas sob seu controle e não comite dados pessoais. Instale temporariam
 7. Com um cliente Google configurado, negue consentimento, autorize, faça upload, simule perda de conexão/expiração e reconecte. Confira os arquivos na pasta, as tentativas limitadas e o ZIP local de recuperação.
 8. Antes de assinar, execute a revisão de permissões e teste o XPI assinado num perfil limpo. A assinatura não comprova a fidelidade do corpus.
 
+## Monitoramento e Drive
+
+1. Num canal de teste, ative monitoramento e confirme que nenhuma publicação anterior entra na contagem. Publique texto com links, foto, vídeo, áudio, documento e figurinha; compare os arquivos e seus MIDs.
+2. Confirme após duas sincronizações que existe apenas um `mensagens.csv` na pasta, com o mesmo ID e as novas linhas. Confira `.system/` e a correspondência entre mensagem, MID e mídia.
+3. Desconecte a rede e depois a conta Google: novas mensagens devem ficar locais, com aviso e pendências. Reconecte a mesma conta e confirme retomada sem arquivos repetidos. A tentativa de outra conta deve ser recusada para a coleta ativa.
+4. Ative liberação de cópias locais e confirme que só arquivos com ID remoto perdem Blob. Confira que o ZIP informa as referências remotas. Desative e confirme ZIP com mídias locais.
+5. Simule o limite local e arquivo acima de 256 MiB: a captura deve pausar sem avançar o cursor da mensagem bloqueada. Exporte o parcial; registre a possível lacuna.
+6. Troque de canal, recarregue, feche o navegador e suspenda o computador. Nenhum desses casos comprova continuidade; confirme aviso, preservação e relato de interrupção.
+
 ## Estado de validação
 
 Resultados desta implementação serão registrados em `docs/VALIDACAO.md`. Testes sintéticos e lint não substituem validação em uma conta WhatsApp real. O Drive não é validado ponta a ponta sem Client ID e conta Google autorizada.

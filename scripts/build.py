@@ -41,6 +41,10 @@ def main():
     api_source = api_source.replace(node_stream, '(()=>{throw new Error("Node streams unavailable in browser")})()')
     (vendor / "wppconnect-wa.js").write_text(api_source)
     shutil.copyfile(api_dependency / "LICENSE", vendor / "LICENSE.wajs")
+    hashes = ROOT / "node_modules/@noble/hashes"
+    (vendor / "noble").mkdir(exist_ok=True)
+    for name in ["sha2.js", "_md.js", "_u64.js", "utils.js", "LICENSE"]:
+        shutil.copyfile(hashes / name, vendor / "noble" / name)
     version = json.loads((EXT / "manifest.json").read_text())["version"]
     DIST.mkdir(exist_ok=True)
     folder = DIST / "whatsapp-scoop-temporario"

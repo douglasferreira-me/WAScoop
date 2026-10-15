@@ -35,3 +35,16 @@ test('API lê texto, legenda e data sem tratar miniatura base64 como legenda',as
  const r=await pageMediaAction('links',{title:'Canal',ids:['imagem','texto']});
  assert.equal(r.messages.imagem.legenda,'Legenda original');assert.equal(r.messages.imagem.texto,'');assert.equal(r.messages.texto.texto,'Texto original');assert.equal(r.messages.imagem.data_hora,new Date(1791892800000).toISOString());assert.equal(r.messages.imagem.data_original,'1791892800');
 });
+test('monitoramento separa linha de base, mensagens novas e revisões sem incluir histórico', async()=>{
+ const {pageMediaAction}=await importFile('lib/api-media.js');
+ const model=n=>({id:{id:'m'+n},serverId:n,type:'chat',body:'Mensagem '+n,t:1791892800+n});
+ const models=[model(1),model(2)];
+ global.WPP={isReady:true,chat:{getActiveChat:()=>({id:{_serialized:'123@newsletter'},name:'Canal',msgs:{models}})}};
+ const base=await pageMediaAction('monitor',{title:'Canal'});assert.equal(base.baseline,2);assert.deepEqual(base.messages,[]);
+ models.push(...Array.from({length:125},(_,i)=>model(i+3)));
+ const first=await pageMediaAction('monitor',{title:'Canal',baseline:2,after:2,chatId:base.chatId});
+ assert.equal(first.messages.length,100);assert.equal(first.cursor,102);assert.ok(first.more);assert.equal(first.messages[0].texto,'Mensagem 3');
+ const second=await pageMediaAction('monitor',{title:'Canal',baseline:2,after:first.cursor,chatId:base.chatId});
+ assert.equal(second.cursor,127);assert.equal(second.messages.length,75);assert.ok(second.messages.every(m=>m.data_hora&&m.texto));assert.ok(second.messages.every(m=>m.serverId>2));
+ assert.equal((await pageMediaAction('monitor',{title:'Canal',baseline:2,after:127,chatId:'456@newsletter'})).code,'chat_changed');
+});

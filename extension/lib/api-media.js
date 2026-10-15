@@ -12,7 +12,7 @@ export async function pageMediaAction(action, args) {
       let raw = ""; for (let i = 0; i < bytes.length; i += 8192) raw += String.fromCharCode(...bytes.subarray(i, i + 8192));
       return { ok: true, data: btoa(raw), size: bytes.length };
     }
-    if (!["begin", "links"].includes(action)) return fail("action", "Operação de mídia inválida.");
+    if (!["begin", "links", "monitor"].includes(action)) return fail("action", "Operação de mídia inválida.");
     if (args.attachment > 0) return fail("album", "Anexo adicional requer controle próprio da mensagem.");
     const W = globalThis.WPP;
     const deadline = Date.now() + 15000;
@@ -23,7 +23,28 @@ export async function pageMediaAction(action, args) {
     const title = chat.name || chat.formattedTitle || chat.contact?.name || "";
     const normalize = s => String(s).normalize("NFKC").replace(/[^\p{L}\p{N}]/gu, "").toLowerCase();
     if (!title || normalize(title) !== normalize(args.title)) return fail("chat_changed", "API e painel apontam para conversas diferentes. Atualize a conversa.");
+    if (args.chatId && (chat.id?._serialized || chat.id?.toString?.()) !== args.chatId) return fail("chat_changed", "O identificador da conversa mudou.");
     const models = chat.msgs?.getModelsArray?.() || chat.msgs?.models || [];
+    if (action === "monitor") {
+      const chatId = chat.id?._serialized || chat.id?.toString?.();
+      if (!chatId || !/@newsletter$/.test(chatId)) return fail("channel", "Monitoramento requer um canal reconhecido pela API.");
+      if (args.chatId && args.chatId !== chatId) return fail("chat_changed", "O identificador do canal mudou.");
+      const valid = models.filter(m => (m.id?._serialized || m.id?.id) && Number.isSafeInteger(Number(m.serverId)) && Number(m.serverId) > 0);
+      if (models.length && !valid.length) return fail("server_id", "Este canal não disponibilizou identificadores para monitoramento seguro.");
+      const latest = valid.reduce((max, m) => Math.max(max, Number(m.serverId)), 0);
+      if (args.baseline === undefined) return { ok: true, baseline: latest, chatId, messages: [], cursor: latest };
+      const newer = valid.filter(m => Number(m.serverId) > args.after).sort((a, b) => Number(a.serverId) - Number(b.serverId)).slice(0, 100);
+      const recent = valid.filter(m => Number(m.serverId) > args.baseline && Number(m.serverId) <= args.after).sort((a, b) => Number(b.serverId) - Number(a.serverId)).slice(0, 50);
+      const selected = [...newer, ...recent];
+      const ids = selected.map(m => m.id?._serialized || m.id?.id || m.id?.toString?.()).filter(Boolean);
+      const details = { links: {}, messages: {} };
+      for (let offset = 0; offset < ids.length; offset += 100) {
+        const part = await pageMediaAction("links", { ...args, ids: ids.slice(offset, offset + 100) });
+        if (!part.ok) return part;
+        Object.assign(details.links, part.links); Object.assign(details.messages, part.messages);
+      }
+      return { ok: true, chatId, baseline: args.baseline, cursor: newer.reduce((max, m) => Math.max(max, Number(m.serverId)), args.after), more: newer.length === 100, messages: selected.map((m, i) => ({ id: ids[i], serverId: Number(m.serverId), ...(details.messages[ids[i]] || {}), tipo: details.messages[ids[i]]?.tipo || "evento", _hasMedia: !!m.mediaData || ["image", "video", "audio", "ptt", "document", "sticker"].includes(m.type), link_mensagem: details.links[ids[i]] || "", _nativeConfirmed: true, _nativeType: details.messages[ids[i]]?.tipo || "", resposta_a: m.quotedStanzaID || "", encaminhada: !!m.isForwarded })).filter(m => m.id) };
+    }
     if (action === "links") {
       const metadata = chat.newsletterMetadata || W.whatsapp?.NewsletterStore?.get?.(chat.id)?.newsletterMetadata;
       const code = metadata?.inviteCode || metadata?.newsletterInviteLinkMetadataMixin?.inviteCode || args.channelCode;

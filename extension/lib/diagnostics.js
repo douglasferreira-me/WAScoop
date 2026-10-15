@@ -1,7 +1,7 @@
 const STORAGE_KEY = "scoop-diagnostic-history-v1";
-const COUNTERS = new Set(["messages", "media", "mediaFailures", "bytes", "batchSize", "unknownDates", "downloadId", "durationMs", "rows"]);
+const COUNTERS = new Set(["messages", "media", "mediaFailures", "bytes", "batchSize", "unknownDates", "downloadId", "durationMs", "rows", "pendingUploads", "localBytes"]);
 const FLAGS = new Set(["mediaEnabled", "pseudonymize", "dateFilter", "fallbackIds", "scrollFound", "configured", "connected"]);
-const LABELS = new Set(["operation", "status", "destination", "conversationType", "source", "mime"]);
+const LABELS = new Set(["operation", "status", "destination", "conversationType", "source", "mime", "mode"]);
 
 export function redact(value, privateValues = []) {
   let text = String(value ?? "");
@@ -34,7 +34,7 @@ function safeData(data, privateValues) {
 }
 export function jobSummary(job) {
   if (!job) return null;
-  return { status: job.status, destination: job.options?.destination, conversationType: job.conversation?.type, messages: job.count || 0, media: job.mediaCount || 0, mediaFailures: job.mediaFailures || 0, bytes: job.bytes || 0, mediaEnabled: !!job.options?.media, pseudonymize: !!job.options?.pseudonymize, dateFilter: !!(job.options?.start || job.options?.end), fallbackIds: !!job.fallbackIds };
+  return { mode: job.options?.mode || "history", pendingUploads: job.pendingUploads || 0, localBytes: job.localBytes || 0, status: job.status, destination: job.options?.destination, conversationType: job.conversation?.type, messages: job.count || 0, media: job.mediaCount || 0, mediaFailures: job.mediaFailures || 0, bytes: job.bytes || 0, mediaEnabled: !!job.options?.media, pseudonymize: !!job.options?.pseudonymize, dateFilter: !!(job.options?.start || job.options?.end), fallbackIds: !!job.fallbackIds };
 }
 export class DiagnosticLog {
   constructor({ storage, privateValues = () => [], clock = () => new Date().toISOString(), limit = 500 } = {}) {

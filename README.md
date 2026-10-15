@@ -1,4 +1,4 @@
-> **Versão beta (de teste).** Estou providenciando uma versão assinada para publicar na loja de extensões do Firefox. Por enquanto, a instalação é temporária: siga o guia abaixo. **A exportação direta para o Google Drive está em implementação.**
+> **Versão beta (de teste).** Estou providenciando uma versão assinada para publicar na loja de extensões do Firefox. Por enquanto, a instalação é temporária: siga o guia abaixo. **Monitoramento e envio direto ao Google Drive disponíveis em beta; o login depende da configuração descrita no guia.**
 
 <p align="center">
   <img src="docs/branding/logo.png" width="128" alt="Whatsapp Scoop: balão de conversa sorridente com óculos de pesquisador">
@@ -14,7 +14,7 @@ Produzido por **[douglasferreira](https://douglasferreira.me)**. A ferramenta or
 
 Este é o **resumo**; o passo a passo completo está logo abaixo. Você não precisa saber programar.
 
-1. Baixe e descompacte o [pacote de teste](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.3.4-beta/whatsapp-scoop-0.3.4-temporario.zip).
+1. Baixe e descompacte o [pacote de teste](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.4.0-beta/whatsapp-scoop-0.4.0-temporario.zip).
 2. No Firefox, abra `about:debugging` → **Este Firefox** → **Carregar extensão temporária** e selecione `manifest.json` na pasta descompactada.
 3. Abra o grupo ou canal no WhatsApp Web, abra o painel **Whatsapp Scoop** e clique em **Iniciar coleta**. Marque **Incluir mídias** se quiser os arquivos.
 4. Ao terminar, salve e descompacte o ZIP. Abra `mensagens.csv` como uma planilha e conserve os demais arquivos junto dela. Se marcar a opção XLSX, também terá uma planilha pronta para análise.
@@ -25,7 +25,7 @@ Este é o **resumo**; o passo a passo completo está logo abaixo. Você não pre
 
 Use **Firefox para computador, versão 140 ou posterior**. Não é necessário instalar Python ou outros programas de desenvolvimento.
 
-1. **Baixe o pacote.** Clique em [whatsapp-scoop-0.3.4-temporario.zip](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.3.4-beta/whatsapp-scoop-0.3.4-temporario.zip). Normalmente ele será salvo na pasta **Downloads**. Use esse arquivo, e não o pacote de código-fonte ou o arquivo `.xpi`.
+1. **Baixe o pacote.** Clique em [whatsapp-scoop-0.3.4-temporario.zip](https://github.com/douglasferreira-me/WAScoop/releases/download/v0.4.0-beta/whatsapp-scoop-0.4.0-temporario.zip). Normalmente ele será salvo na pasta **Downloads**. Use esse arquivo, e não o pacote de código-fonte ou o arquivo `.xpi`.
 2. **Descompacte o arquivo.** ZIP é um arquivo que reúne uma pasta e seus conteúdos. No Windows, clique com o botão direito e escolha **Extrair tudo**. No macOS, dê dois cliques no ZIP. Guarde a pasta extraída: você precisará dela nas próximas instalações.
 3. **Abra a página de instalação.** No Firefox, clique na barra de endereço, no alto da janela. Digite `about:debugging` e pressione **Enter**.
 4. **Escolha este navegador.** Clique em **Este Firefox**, à esquerda. Depois clique em **Carregar extensão temporária…**. Se o Firefox estiver em inglês, os nomes são **This Firefox** e **Load Temporary Add-on…**.
@@ -76,9 +76,22 @@ Para outros programas, abra `mensagens.csv` no Excel ou LibreOffice, ou importe 
 - **Links:** a coluna `links` registra os endereços encontrados nas mensagens, sem abrir os sites. Imagens de prévias de links não substituem mídias enviadas diretamente.
 - **Interações:** `interacoes_total` registra o total de reações observado. `interacoes_precisao` indica se a contagem é exata, aproximada ou indisponível. Um campo vazio não significa zero. A contagem pode mudar depois da coleta.
 
-### Google Drive: em implementação
+### Monitorar somente mensagens novas
 
-**A exportação direta para o Google Drive está sendo implementada e validada.** O envio também depende de uma configuração feita pelo mantenedor. **Enquanto o painel indicar que o login não está configurado, use o ZIP.** Quando disponível, escolha o destino Google Drive, clique em **Conectar ao Google Drive**, autorize sua conta e inicie a coleta. A extensão criará uma pasta e enviará os arquivos diretamente para ela. O pesquisador não precisa criar credenciais. [Configuração para mantenedores](docs/GOOGLE_DRIVE.md).
+1. Abra o canal e escolha **Monitorar novas mensagens de um canal** no painel. As mídias são incluídas automaticamente; o histórico anterior fica de fora.
+2. Escolha **Google Drive** e conecte sua conta, após seguir o [guia de configuração](docs/GOOGLE_DRIVE.md). Também é possível escolher ZIP e exportar manualmente ao pausar ou encerrar.
+3. Clique em **Iniciar coleta** e mantenha o canal aberto. O painel mostra mensagens, mídias, espaço local e envios pendentes. Fechar o painel não encerra a coleta.
+4. No Drive, uma pasta reúne as mídias e **um único `mensagens.csv`**, atualizado a cada minuto quando houver mudanças. **Sincronizar agora** antecipa o envio. XLSX continua opcional, gerado ao encerrar.
+
+As mensagens ficam no disco do Firefox, sem manter todo o corpus na memória. O limite local de mídias é **512 MB**, ajustável antes de iniciar. Você pode marcar **Liberar cópias locais após confirmação no Drive**: isso reduz o espaço usado, mas o ZIP passa a conter referências às mídias remotas já liberadas. Desmarcado, preserva as cópias locais para um ZIP completo. Arquivos individuais acima de 256 MB pausam o monitoramento.
+
+Se a internet ou a autorização Google falhar, a fila fica local; ao atingir o limite, a captura pausa. Reconecte e use **Sincronizar agora**, depois **Continuar**. Se estiver preservando cópias locais e atingir o limite, encerre e exporte antes de iniciar outra coleta. **O monitoramento depende do navegador, computador e canal abertos; pausas e suspensão podem deixar lacunas.** Interações são atualizadas apenas para mensagens recentes ainda carregadas.
+
+### Google Drive
+
+O envio direto está implementado para teste, mas **a validação real do login e upload depende de criar o aplicativo Google**. Siga o [passo a passo](docs/GOOGLE_DRIVE.md): ativar a Drive API, cadastrar seu e-mail de teste, copiar o redirecionamento da extensão e salvar o Client ID público. Depois, basta conectar sua conta pelo painel. Não informe senha nem segredo do cliente à extensão.
+
+O acesso solicitado é restrito aos arquivos do aplicativo (`drive.file`). Tokens ficam somente na sessão. O fluxo de login é legado e pode exigir reconexão; confira as limitações no guia. O ZIP local funciona sem configurar Google.
 
 ## Se algo não funcionar
 

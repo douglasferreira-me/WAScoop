@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Whatsapp Scoop",
-  "version": "0.3.4",
+  "version": "0.4.0",
   "description": "Exporte o histórico acessível de grupos e canais para pesquisa: planilhas XLSX, CSV, mídias e ZIP.",
   "author": "douglasferreira",
   "homepage_url": "https://douglasferreira.me",
@@ -28,7 +28,8 @@
     "unlimitedStorage",
     "identity",
     "https://web.whatsapp.com/*",
-    "scripting"
+    "scripting",
+    "alarms"
   ],
   "optional_permissions": [
     "https://accounts.google.com/*",

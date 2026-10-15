@@ -1,0 +1,7 @@
+const {test}=require('node:test'),assert=require('node:assert/strict');require('fake-indexeddb/auto');const {importFile}=require('./helpers.cjs');
+test('migração preserva coletas e mídias da versão anterior, acrescentando índice e fila',async()=>{
+ const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('whatsapp-scoop-v1',1);r.onupgradeneeded=()=>{for(const name of ['jobs','messages','media']){const s=r.result.createObjectStore(name,{keyPath:'key'});if(name!=='jobs')s.createIndex('job','job');}};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
+ await new Promise((resolve,reject)=>{const tx=db.transaction(['jobs','messages','media'],'readwrite');tx.objectStore('jobs').put({key:'old',count:1});tx.objectStore('messages').put({key:'old:date:m',job:'old',message:{id:'m',texto:'Preservado'}});tx.objectStore('media').put({key:'old:file',job:'old',blob:new Blob(['original'])});tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});db.close();
+ const {Store}=await importFile('lib/store.js');const store=new Store();await store.open();assert.equal((await store.get('jobs','old')).count,1);assert.equal((await store.findMessage('old','m')).message.texto,'Preservado');assert.equal(await(await store.get('media','old:file')).blob.text(),'original');assert.ok(store.db.objectStoreNames.contains('uploads'));
+ await store.deleteJob('old');assert.equal(await store.findMessage('old','m'),undefined);store.db.close();
+});

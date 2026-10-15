@@ -13,6 +13,7 @@ Nomes e números são preservados quando expostos na interface. Pseudonimizaçã
 | `unlimitedStorage` | Permitir corpus e mídias maiores no armazenamento da extensão; não garante espaço infinito. |
 | `downloads` | Salvar o ZIP e liberar seu endereço temporário quando o download terminar ou falhar. |
 | `scripting` | Executar a biblioteca WA-JS localmente no contexto da página WhatsApp autorizada, para baixar mídias pela sessão já conectada. Nenhum servidor intermediário. |
+| `alarms` | Verificar a fila de envio ao Drive a cada minuto durante o monitoramento, enquanto o navegador estiver aberto. |
 | `identity` | Abrir o login Google e receber o redirecionamento autorizado. O Firefox exige essa permissão no manifesto principal, mas a extensão só inicia login após clicar em Conectar. |
 | Google APIs — opcionais | Validar a autorização e criar/enviar arquivos no Drive, quando o usuário escolhe esse destino. |
 
@@ -27,3 +28,5 @@ O código de captura de mídias observa brevemente a criação de um Blob e o cl
 O diagnóstico guarda localmente até 500 eventos técnicos com contagens e erros sanitizados. O download é voluntário e não há telemetria ou compartilhamento automático.
 
 WA-JS 4.6.1 é incluído no pacote (Apache-2.0). O contexto MAIN é compartilhado com o próprio WhatsApp; nele circulam apenas a identificação da conversa/mensagem necessária e bytes de mídias daquela sessão, nunca tokens Google. A extensão não chama funções de envio de mensagens, inscrição em canais ou alteração de contatos. A API valida a conversa ativa antes de cada obtenção de mídia.
+
+No monitoramento, somente um canal escolhido é acompanhado a partir da ativação. A opção de liberar cópias locais apaga apenas os bytes de mídias cujo upload já foi confirmado; mantém ID, hash e referência no Drive. A conta é conferida pelo identificador opaco `permissionId` para impedir troca involuntária de destinatário. Não é solicitada leitura do Drive inteiro. Sem internet ou autorização, novos envios ficam pendentes no perfil até o limite configurado. Fechar navegador, suspender o computador ou trocar de canal interrompe a observação.

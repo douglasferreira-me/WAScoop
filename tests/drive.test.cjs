@@ -36,8 +36,34 @@ test("OAuth valida state e audiência antes de aceitar token", async () => {
   const { Drive } = await importFile("lib/drive.js");
   const client = "123-test.apps.googleusercontent.com", redirect = "https://id.extensions.allizom.org/";
   const identity = { getRedirectURL: () => redirect, launchWebAuthFlow: async ({ url }) => { const q = new URL(url).searchParams; return `${redirect}#state=${q.get("state")}&access_token=abc&expires_in=3600`; } };
-  const d = new Drive({ identity, clock: () => 1000, fetcher: async () => response(200, { aud: client, scope: "https://www.googleapis.com/auth/drive.file", expires_in: "3600" }) });
+  const d = new Drive({ identity, clock: () => 1000, fetcher: async url => url.includes("/about?") ? response(200, { user: { permissionId: "account-1" } }) : response(200, { aud: client, scope: "https://www.googleapis.com/auth/drive.file", expires_in: "3600" }) });
   await d.connect(client); assert.ok(d.connected()); d.disconnect(); assert.equal(d.connected(), false);
   const wrong = new Drive({ identity: { ...identity, launchWebAuthFlow: async () => `${redirect}#state=wrong&access_token=abc` } });
   await assert.rejects(wrong.connect(client), /inválida/);
+});
+test("atualização do mesmo CSV usa PATCH, sem recriar arquivo nem alterar pasta",async()=>{
+ const {Drive}=await importFile('lib/drive.js');let initial;
+ const d=new Drive({identity:{},tokenProvider:()=> 'test',fetcher:async(url,init)=>{
+  if(init.method==='PATCH'){initial={url,body:JSON.parse(init.body)};return response(200,{}, {Location:'https://www.googleapis.com/upload/update'});}
+  assert.equal(init.method,'PUT');return response(200,{id:'csv-original'});
+ }});
+ await d.upload('mensagens.csv',new Blob(['csv novo']),'folder',()=>{},null,async()=>{},'csv-original');
+ assert.match(initial.url,/\/csv-original\?/);assert.deepEqual(initial.body,{name:'mensagens.csv'});
+});
+test('renovação silenciosa não abre consentimento e impede troca de conta',async()=>{
+ const {Drive,AuthRequired}=await importFile('lib/drive.js');let account='a',time=0;const prompts=[];
+ const client='123.apps.googleusercontent.com',redirect='https://id.extensions.allizom.org/';
+ const d=new Drive({clock:()=>time,identity:{getRedirectURL:()=>redirect,launchWebAuthFlow:async({url,interactive})=>{const q=new URL(url).searchParams;prompts.push([interactive,q.get('prompt')]);return redirect+'#state='+q.get('state')+'&access_token=test&expires_in=3600';}},fetcher:async url=>url.includes('tokeninfo')?response(200,{aud:client,scope:'https://www.googleapis.com/auth/drive.file',expires_in:3600}):url.includes('/about?')?response(200,{user:{permissionId:account}}):response(200,{id:'folder'})});
+ await d.connect(client);time=4000000;await d.folder('a');assert.deepEqual(prompts,[[true,'select_account'],[false,'none']]);
+ time=8000000;account='b';await assert.rejects(d.folder('a'),AuthRequired);assert.equal(d.connected(),false);
+});
+test('sessão retomável expirada é substituída mantendo o ID do CSV',async()=>{
+ const {Drive}=await importFile('lib/drive.js');const sessions=[];let calls=0;
+ const d=new Drive({identity:{},tokenProvider:()=> 'test',fetcher:async(url,init)=>{
+  calls++;if(url.endsWith('/expired'))return response(410);
+  if(init.method==='PATCH'){assert.match(url,/\/csv-id\?/);return response(200,{}, {Location:'https://www.googleapis.com/upload/new'});}
+  return response(200,{id:'csv-id'});
+ }});
+ const result=await d.upload('mensagens.csv',new Blob(['texto']),'folder',()=>{},'https://www.googleapis.com/expired',async url=>sessions.push(url),'csv-id');
+ assert.equal(result.id,'csv-id');assert.deepEqual(sessions,[null,'https://www.googleapis.com/upload/new']);assert.equal(calls,3);
 });

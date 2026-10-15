@@ -1,12 +1,15 @@
 {
-  "extensionVersion": "0.3.4",
-  "browser": "153.4.0",
+  "extensionVersion": "0.4.0",
+  "browser": "153.5.0",
   "fixture": "grupo e canal sintéticos locais; API WPP simulada; não WhatsApp real",
   "messages": 35,
   "media": 6,
   "failures": 1,
   "partialChannelMessages": 10,
+  "monitorMessages": 2,
+  "monitorMedia": 1,
   "checked": [
+    "monitoramento exclui histórico, captura texto e foto, atualiza texto e reações sem duplicar, pausa por tamanho sem avançar cursor e exporta",
     "instalação temporária",
     "painel",
     "rolagem com sobreposição",
