@@ -10,6 +10,8 @@
 
 A tool to **make research easier for communication and media researchers studying the internet**. It collects messages from a WhatsApp group or channel into a spreadsheet and can also download the media. Use it to organize a corpus, analyze content, and document collection methods for academic articles and other research, including studies of disinformation.
 
+It also supports **continuous listening for a channel**: captures new messages and media while WhatsApp stays open, including when you use other tabs. On Google Drive, it updates the same CSV and, if selected, the same XLSX workbook about once a minute when changes occur. Drive uploads remain restricted to testing.
+
 Created by **[Douglas Ferreira](https://douglasferreira.me)**. The tool organizes material; researchers perform the analysis and classification.
 
 ## Quick summary
@@ -22,6 +24,9 @@ This is the **summary**; the full instructions follow below. You do not need pro
 4. Save and extract the resulting ZIP. Open `mensagens.csv` as a spreadsheet and keep the other files together. Select the optional XLSX workbook for a more convenient analysis view.
 
 **You must load the extension again after restarting Firefox. Export your collection before closing the browser.**
+
+> [!TIP]
+> **[Detailed installation and usage instructions follow below.](#install-the-test-version-step-by-step)**
 
 ## Partnerships
 
@@ -44,8 +49,6 @@ In partnership with [Condado Lab](https://condadolab.org) and [OASIS — UFRJ](h
     </td>
   </tr>
 </table>
-
-**Detailed installation and usage instructions follow below.**
 
 ## Install the test version: step by step
 

@@ -10,6 +10,8 @@
 
 Uma ferramenta para **facilitar o trabalho de pesquisadores de comunicação social na internet**. Ela reúne mensagens de um grupo ou canal do WhatsApp em uma planilha e, se você quiser, também baixa as mídias. Assim, você pode organizar um corpus, analisar conteúdos e documentar sua coleta para artigos e outras pesquisas, inclusive sobre desinformação.
 
+Também oferece **listening contínuo de um canal**: acompanha novas mensagens e mídias enquanto o WhatsApp permanece aberto, inclusive quando você usa outras abas. No Google Drive, atualiza o mesmo CSV e, se selecionado, o mesmo workbook XLSX, aproximadamente a cada minuto quando houver mudanças. O envio ao Drive permanece restrito a testes.
+
 Produzido por **[Douglas Ferreira](https://douglasferreira.me)**. A ferramenta organiza o material; a análise e a classificação dos conteúdos cabem ao pesquisador.
 
 ## Resumo da explicação
@@ -22,6 +24,9 @@ Este é o **resumo**; o passo a passo completo está mais abaixo. Você não pre
 4. Ao terminar, salve e descompacte o ZIP. Abra `mensagens.csv` como uma planilha e conserve os demais arquivos junto dela. Se marcar a opção XLSX, também terá uma planilha pronta para análise.
 
 **Ao fechar e reabrir o Firefox, será necessário carregar a extensão novamente. Exporte sua coleta antes de fechar o navegador.**
+
+> [!TIP]
+> **[Mais abaixo estão as instruções completas de instalação e uso.](#passo-a-passo-instalar-a-versão-de-teste)**
 
 ## Parcerias
 
@@ -44,8 +49,6 @@ Em parceria com [Condado Lab](https://condadolab.org) e [OASIS — UFRJ](https:/
     </td>
   </tr>
 </table>
-
-**Mais abaixo estão as instruções completas de instalação e uso.**
 
 ## Passo a passo: instalar a versão de teste
 
